@@ -9,7 +9,27 @@ import (
 	"taheri24.ir/graph1/pkg/config"
 
 	"github.com/gin-gonic/gin"
+	"github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
+
+// @title Task Management API
+// @version 1.0
+// @description A RESTful API for managing tasks built with Go, Gin, and PostgreSQL.
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.url http://www.swagger.io/support
+// @contact.email support@swagger.io
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host localhost:8080
+// @BasePath /
+
+// @externalDocs.description OpenAPI
+// @externalDocs.url https://swagger.io/resources/open-api/
 
 func main() {
 	// Load configuration
@@ -53,6 +73,9 @@ func main() {
 		api.PUT("/:id", taskHandler.UpdateTask)
 		api.DELETE("/:id", taskHandler.DeleteTask)
 	}
+
+	// Swagger documentation
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Start server
 	log.Printf("Server starting on port %s", cfg.Server.Port)

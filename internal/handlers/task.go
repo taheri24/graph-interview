@@ -12,11 +12,11 @@ import (
 )
 
 type TaskHandler struct {
-	db *database.Database
+	repo database.TaskRepository
 }
 
-func NewTaskHandler(db *database.Database) *TaskHandler {
-	return &TaskHandler{db: db}
+func NewTaskHandler(repo database.TaskRepository) *TaskHandler {
+	return &TaskHandler{repo: repo}
 }
 
 // CreateTaskRequest represents the request body for creating a task
@@ -63,6 +63,16 @@ type ErrorResponse struct {
 }
 
 // CreateTask handles POST /tasks
+// @Summary Create a new task
+// @Description Create a new task with the provided information
+// @Tags tasks
+// @Accept json
+// @Produce json
+// @Param task body CreateTaskRequest true "Task information"
+// @Success 201 {object} TaskResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /tasks [post]
 func (h *TaskHandler) CreateTask(c *gin.Context) {
 	var req CreateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -81,7 +91,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		task.Status = models.StatusPending
 	}
 
-	if err := h.db.DB.Create(&task).Error; err != nil {
+	if err := h.repo.Create(&task); err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to create task"})
 		return
 	}
@@ -100,6 +110,18 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 }
 
 // GetTasks handles GET /tasks
+// @Summary Get all tasks with pagination and filtering
+// @Description Retrieve a paginated list of tasks with optional filtering by status and assignee
+// @Tags tasks
+// @Accept json
+// @Produce json
+// @Param page query int false "Page number (default: 1)" minimum(1)
+// @Param limit query int false "Items per page (default: 10, max: 100)" minimum(1) maximum(100)
+// @Param status query string false "Filter by status (pending, in_progress, completed)"
+// @Param assignee query string false "Filter by assignee"
+// @Success 200 {object} TaskListResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /tasks [get]
 func (h *TaskHandler) GetTasks(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "10")
@@ -116,22 +138,8 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 		limit = 10
 	}
 
-	offset := (page - 1) * limit
-
-	query := h.db.DB.Model(&models.Task{})
-
-	if status != "" {
-		query = query.Where("status = ?", status)
-	}
-	if assignee != "" {
-		query = query.Where("assignee = ?", assignee)
-	}
-
-	var total int64
-	query.Count(&total)
-
-	var tasks []models.Task
-	if err := query.Offset(offset).Limit(limit).Find(&tasks).Error; err != nil {
+	tasks, total, err := h.repo.GetAll(page, limit, status, assignee)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to fetch tasks"})
 		return
 	}
@@ -164,6 +172,16 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 }
 
 // GetTask handles GET /tasks/{id}
+// @Summary Get a task by ID
+// @Description Retrieve a specific task by its UUID
+// @Tags tasks
+// @Accept json
+// @Produce json
+// @Param id path string true "Task ID (UUID)"
+// @Success 200 {object} TaskResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Router /tasks/{id} [get]
 func (h *TaskHandler) GetTask(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
@@ -172,8 +190,8 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 		return
 	}
 
-	var task models.Task
-	if err := h.db.DB.First(&task, "id = ?", id).Error; err != nil {
+	task, err := h.repo.GetByID(id)
+	if err != nil {
 		c.JSON(http.StatusNotFound, ErrorResponse{Error: "Task not found"})
 		return
 	}
@@ -192,6 +210,18 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 }
 
 // UpdateTask handles PUT /tasks/{id}
+// @Summary Update a task
+// @Description Update an existing task with the provided information. Only provided fields will be updated.
+// @Tags tasks
+// @Accept json
+// @Produce json
+// @Param id path string true "Task ID (UUID)"
+// @Param task body UpdateTaskRequest true "Task update information"
+// @Success 200 {object} TaskResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /tasks/{id} [put]
 func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
@@ -200,8 +230,8 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		return
 	}
 
-	var task models.Task
-	if err := h.db.DB.First(&task, "id = ?", id).Error; err != nil {
+	task, err := h.repo.GetByID(id)
+	if err != nil {
 		c.JSON(http.StatusNotFound, ErrorResponse{Error: "Task not found"})
 		return
 	}
@@ -226,7 +256,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		task.Assignee = *req.Assignee
 	}
 
-	if err := h.db.DB.Save(&task).Error; err != nil {
+	if err := h.repo.Update(task); err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to update task"})
 		return
 	}
@@ -245,6 +275,17 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 }
 
 // DeleteTask handles DELETE /tasks/{id}
+// @Summary Delete a task
+// @Description Delete a task by its UUID
+// @Tags tasks
+// @Accept json
+// @Produce json
+// @Param id path string true "Task ID (UUID)"
+// @Success 204 "No Content"
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /tasks/{id} [delete]
 func (h *TaskHandler) DeleteTask(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
@@ -253,14 +294,8 @@ func (h *TaskHandler) DeleteTask(c *gin.Context) {
 		return
 	}
 
-	result := h.db.DB.Delete(&models.Task{}, "id = ?", id)
-	if result.Error != nil {
+	if err := h.repo.Delete(id); err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to delete task"})
-		return
-	}
-
-	if result.RowsAffected == 0 {
-		c.JSON(http.StatusNotFound, ErrorResponse{Error: "Task not found"})
 		return
 	}
 

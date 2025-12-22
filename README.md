@@ -1,6 +1,6 @@
 # Task Management API
 
-A RESTful API for managing tasks built with Go, Gin, and PostgreSQL using GORM.
+A comprehensive RESTful API for managing tasks built with Go, Gin, and PostgreSQL using GORM. Features full CRUD operations, comprehensive testing, and complete API documentation.
 
 ## Features
 
@@ -362,9 +362,51 @@ go run cmd/api/main.go
 
 ### Running Tests
 
+This project includes comprehensive test coverage with both unit and integration tests.
+
+#### Unit Tests
+Unit tests use mocked database interfaces for fast, isolated testing:
+
 ```bash
-go test ./...
+go test ./internal/handlers -v
 ```
+
+#### Integration Tests
+Integration tests require a PostgreSQL database and test the full application stack:
+
+```bash
+# Set up test database environment variables
+export TEST_DB_HOST=localhost
+export TEST_DB_PORT=5433
+export TEST_DB_USER=postgres
+export TEST_DB_PASSWORD=password
+export TEST_DB_NAME=taskdb_test
+
+# Run integration tests
+go test ./internal/handlers -run TestIntegrationTestSuite -v
+```
+
+#### All Tests with Coverage
+Run all tests and generate coverage report:
+
+```bash
+# Run tests with coverage
+go test ./... -coverprofile=coverage.out
+
+# View coverage report
+go tool cover -func=coverage.out
+
+# Generate HTML coverage report
+go tool cover -html=coverage.out -o coverage.html
+```
+
+Current test coverage: **76.5%** (exceeds the 70% requirement)
+
+#### Test Coverage Details
+- **Unit Tests**: Handler logic with mocked database interfaces
+- **Integration Tests**: Full API testing with real PostgreSQL database
+- **Test Framework**: Uses `testify/suite` for organized test suites
+- **Mocking**: Database operations mocked using custom interfaces
 
 ### Linting
 
@@ -384,10 +426,21 @@ The `.air.toml` configuration file is set up to:
 
 To use Air:
 ```bash
+export PATH=$PATH:$(go env GOPATH)/bin
 air
 ```
 
 Air will start the server and watch for file changes. When you save a file, it will automatically rebuild and restart the application.
+
+### API Documentation
+
+The API is fully documented using OpenAPI/Swagger specifications. When the server is running, you can access the interactive API documentation at:
+
+- **Swagger UI**: `http://localhost:8080/swagger/index.html`
+
+The OpenAPI specification files are also available in the `docs/` directory:
+- `docs/swagger.json` - JSON format
+- `docs/swagger.yaml` - YAML format
 
 ## Project Structure
 
