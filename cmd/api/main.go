@@ -2,15 +2,13 @@ package main
 
 import (
 	"log"
-	"net/http"
 
 	"taheri24.ir/graph1/internal/database"
 	"taheri24.ir/graph1/internal/handlers"
+	"taheri24.ir/graph1/internal/routers"
 	"taheri24.ir/graph1/pkg/config"
 
 	"github.com/gin-gonic/gin"
-	"github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // @title Task Management API
@@ -45,37 +43,14 @@ func main() {
 	// Set up Gin router
 	router := gin.Default()
 
-	// Health check endpoint
-	router.GET("/health", func(c *gin.Context) {
-		if err := db.Health(); err != nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{
-				"status": "unhealthy",
-				"error":  err.Error(),
-			})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"status":   "healthy",
-			"database": "connected",
-		})
-	})
+	// Setup routers
+	routers.SetupHealthRouter(router, db)
 
 	// Initialize task handler
 	taskHandler := handlers.NewTaskHandler(db)
+	routers.SetupTaskRouter(router, taskHandler)
 
-	// Task routes
-	api := router.Group("/tasks")
-	{
-		api.POST("", taskHandler.CreateTask)
-		api.GET("", taskHandler.GetTasks)
-		api.GET("/:id", taskHandler.GetTask)
-		api.PUT("/:id", taskHandler.UpdateTask)
-		api.DELETE("/:id", taskHandler.DeleteTask)
-	}
-
-	// Swagger documentation
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	routers.SetupSwaggerRouter(router)
 
 	// Start server
 	log.Printf("Server starting on port %s", cfg.Server.Port)

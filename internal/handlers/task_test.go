@@ -74,6 +74,7 @@ func (suite *TaskHandlerTestSuite) SetupTest() {
 	suite.mockRepo = &MockTaskRepository{}
 	suite.handler = handlers.NewTaskHandler(suite.mockRepo)
 	suite.router = gin.New()
+
 }
 
 func TestTaskHandlerTestSuite(t *testing.T) {
@@ -324,4 +325,187 @@ func (suite *TaskHandlerTestSuite) TestDeleteTask_Success() {
 	assert.Equal(suite.T(), http.StatusNoContent, w.Code)
 }
 
-// Helper functions for creating pointers are defined in task_integration_test.go
+func (suite *TaskHandlerTestSuite) TestDeleteTask_NotFound() {
+	// Setup
+	taskID := uuid.New()
+	suite.mockRepo.DeleteFunc = func(id uuid.UUID) error {
+		return sql.ErrNoRows
+	}
+
+	// Execute
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("DELETE", "/tasks/"+taskID.String(), nil)
+	suite.router.DELETE("/tasks/:id", suite.handler.DeleteTask)
+	suite.router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(suite.T(), http.StatusInternalServerError, w.Code)
+
+	var response handlers.ErrorResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "Failed to delete task", response.Error)
+}
+
+func (suite *TaskHandlerTestSuite) TestDeleteTask_InvalidID() {
+	// Execute
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("DELETE", "/tasks/invalid-id", nil)
+	suite.router.DELETE("/tasks/:id", suite.handler.DeleteTask)
+	suite.router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(suite.T(), http.StatusBadRequest, w.Code)
+
+	var response handlers.ErrorResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "Invalid task ID", response.Error)
+}
+
+func (suite *TaskHandlerTestSuite) TestUpdateTask_NotFound() {
+	// Setup
+	taskID := uuid.New()
+	updateReq := handlers.UpdateTaskRequest{
+		Title: stringPtr("Updated Title"),
+	}
+
+	suite.mockRepo.GetByIDFunc = func(id uuid.UUID) (*models.Task, error) {
+		return nil, sql.ErrNoRows
+	}
+
+	// Execute
+	w := httptest.NewRecorder()
+	body, _ := json.Marshal(updateReq)
+	req, _ := http.NewRequest("PUT", "/tasks/"+taskID.String(), bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	suite.router.PUT("/tasks/:id", suite.handler.UpdateTask)
+	suite.router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(suite.T(), http.StatusNotFound, w.Code)
+
+	var response handlers.ErrorResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "Task not found", response.Error)
+}
+
+func (suite *TaskHandlerTestSuite) TestUpdateTask_InvalidID() {
+	// Setup
+	updateReq := handlers.UpdateTaskRequest{
+		Title: stringPtr("Updated Title"),
+	}
+
+	// Execute
+	w := httptest.NewRecorder()
+	body, _ := json.Marshal(updateReq)
+	req, _ := http.NewRequest("PUT", "/tasks/invalid-id", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	suite.router.PUT("/tasks/:id", suite.handler.UpdateTask)
+	suite.router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(suite.T(), http.StatusBadRequest, w.Code)
+
+	var response handlers.ErrorResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "Invalid task ID", response.Error)
+}
+
+func (suite *TaskHandlerTestSuite) TestUpdateTask_InvalidRequest() {
+	// Setup
+	taskID := uuid.New()
+	// Invalid JSON
+	invalidBody := []byte(`{"title":}`)
+
+	// Execute
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("PUT", "/tasks/"+taskID.String(), bytes.NewBuffer(invalidBody))
+	req.Header.Set("Content-Type", "application/json")
+	suite.router.PUT("/tasks/:id", suite.handler.UpdateTask)
+	suite.router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(suite.T(), http.StatusBadRequest, w.Code)
+}
+
+func (suite *TaskHandlerTestSuite) TestCreateTask_DatabaseError() {
+	// Setup
+	reqBody := handlers.CreateTaskRequest{
+		Title:       "Test Task",
+		Description: "Test Description",
+		Status:      models.StatusPending,
+		Assignee:    "test@example.com",
+	}
+
+	suite.mockRepo.CreateFunc = func(task *models.Task) error {
+		return assert.AnError
+	}
+
+	// Execute
+	w := httptest.NewRecorder()
+	body, _ := json.Marshal(reqBody)
+	req, _ := http.NewRequest("POST", "/tasks", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	suite.router.POST("/tasks", suite.handler.CreateTask)
+	suite.router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(suite.T(), http.StatusInternalServerError, w.Code)
+}
+
+func (suite *TaskHandlerTestSuite) TestGetTasks_WithFilters() {
+	// Setup
+	expectedTasks := []models.Task{
+		{
+			ID:          uuid.New(),
+			Title:       "Task 1",
+			Description: "Description 1",
+			Status:      models.StatusPending,
+			Assignee:    "user1@example.com",
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+		},
+	}
+
+	suite.mockRepo.GetAllFunc = func(page, limit int, status, assignee string) ([]models.Task, int64, error) {
+		assert.Equal(suite.T(), 1, page)
+		assert.Equal(suite.T(), 5, limit)
+		assert.Equal(suite.T(), "pending", status)
+		assert.Equal(suite.T(), "user1@example.com", assignee)
+		return expectedTasks, 1, nil
+	}
+
+	// Execute
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/tasks?page=1&limit=5&status=pending&assignee=user1@example.com", nil)
+	suite.router.GET("/tasks", suite.handler.GetTasks)
+	suite.router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(suite.T(), http.StatusOK, w.Code)
+
+	var response handlers.TaskListResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), 1, len(response.Tasks))
+	assert.Equal(suite.T(), int64(1), response.Total)
+}
+
+func (suite *TaskHandlerTestSuite) TestGetTasks_DatabaseError() {
+	// Setup
+	suite.mockRepo.GetAllFunc = func(page, limit int, status, assignee string) ([]models.Task, int64, error) {
+		return nil, 0, assert.AnError
+	}
+
+	// Execute
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/tasks?page=1&limit=10", nil)
+	suite.router.GET("/tasks", suite.handler.GetTasks)
+	suite.router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(suite.T(), http.StatusInternalServerError, w.Code)
+}
