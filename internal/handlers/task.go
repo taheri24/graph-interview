@@ -151,12 +151,13 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 
 	totalPages := int((total + int64(limit) - 1) / int64(limit))
 
-	response := PaginatedTasksResponse{
-		Tasks:      taskResponses,
-		Page:       page,
-		Limit:      limit,
-		Total:      total,
-		TotalPages: totalPages,
+	response := TaskListResponse{
+		Tasks:       taskResponses,
+		Total:       total,
+		Page:        page,
+		Limit:       limit,
+		HasNext:     page < totalPages,
+		HasPrevious: page > 1,
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -212,17 +213,17 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	}
 
 	// Update only provided fields
-	if req.Title != "" {
-		task.Title = req.Title
+	if req.Title != nil {
+		task.Title = *req.Title
 	}
-	if req.Description != "" {
-		task.Description = req.Description
+	if req.Description != nil {
+		task.Description = *req.Description
 	}
-	if req.Status != "" {
-		task.Status = req.Status
+	if req.Status != nil {
+		task.Status = *req.Status
 	}
-	if req.Assignee != "" {
-		task.Assignee = req.Assignee
+	if req.Assignee != nil {
+		task.Assignee = *req.Assignee
 	}
 
 	if err := h.db.DB.Save(&task).Error; err != nil {

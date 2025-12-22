@@ -27,7 +27,7 @@ func Load() *Config {
 			Host:     getEnv("DB_HOST", "localhost"),
 			Port:     getEnv("DB_PORT", "5432"),
 			User:     getEnv("DB_USER", "postgres"),
-			Password: getEnv("DB_PASSWORD", "password"),
+			Password: getEnv("DB_PASSWORD", ""),
 			DBName:   getEnv("DB_NAME", "taskdb"),
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 		},
@@ -40,6 +40,15 @@ func Load() *Config {
 }
 
 func (c *Config) GetDatabaseDSN() string {
+	if c.Database.Password == "" {
+		return fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s",
+			c.Database.Host,
+			c.Database.Port,
+			c.Database.User,
+			c.Database.DBName,
+			c.Database.SSLMode,
+		)
+	}
 	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		c.Database.Host,
 		c.Database.Port,

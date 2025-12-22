@@ -29,10 +29,25 @@ A RESTful API for managing tasks built with Go, Gin, and PostgreSQL using GORM.
 ### Running the Application
 
 1. Clone the repository
-2. Run the application with Docker Compose:
+2. Set up PostgreSQL database (see Development section)
+3. Run the application with Docker Compose:
 
 ```bash
 docker-compose up --build
+```
+
+Or run locally:
+
+```bash
+# Set environment variables
+export DB_HOST=localhost
+export DB_USER=postgres
+export DB_PASSWORD=your_password
+export DB_NAME=taskdb
+export SERVER_PORT=8080
+
+# Run the application
+go run cmd/api/main.go
 ```
 
 The API will be available at `http://localhost:8080`
@@ -324,12 +339,24 @@ Common status codes:
 
 ### Running Locally (without Docker)
 
-1. Install Go 1.25.5+
-2. Set up PostgreSQL database
-3. Set environment variables
-4. Run the application:
+1. Install Go 1.21+
+2. Install Air for live reloading: `go install github.com/cosmtrek/air@latest`
+3. Set up PostgreSQL database
+4. Set environment variables
+5. Run the application with live reloading:
 
 ```bash
+# Use the development script (recommended)
+./dev.sh
+
+# Or manually:
+# Make sure Go binaries are in PATH
+export PATH=$PATH:$(go env GOPATH)/bin
+
+# Development mode with live reloading
+air
+
+# Or run directly
 go run cmd/api/main.go
 ```
 
@@ -344,6 +371,23 @@ go test ./...
 ```bash
 ./lint.sh
 ```
+
+### Development with Live Reloading
+
+This project uses [Air](https://github.com/cosmtrek/air) for live reloading during development. Air automatically rebuilds and restarts the server when you make changes to Go files.
+
+The `.air.toml` configuration file is set up to:
+- Watch `.go`, `.tpl`, `.tmpl`, and `.html` files
+- Exclude test files and certain directories
+- Build to `./tmp/main` and run from there
+- Provide colored output for better visibility
+
+To use Air:
+```bash
+air
+```
+
+Air will start the server and watch for file changes. When you save a file, it will automatically rebuild and restart the application.
 
 ## Project Structure
 
