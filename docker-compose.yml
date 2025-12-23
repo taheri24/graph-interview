@@ -63,6 +63,34 @@ services:
     depends_on:
       - api
 
+  seeder:
+    image: golang
+    container_name: task-api-seeder
+    working_dir: /app
+    volumes:
+      - .:/app
+      - go_mod_cache:/go/pkg/mod
+      - go_build_cache:/root/.cache/go-build
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: password
+      DB_NAME: taskdb
+      DB_SSLMODE: disable
+      SERVER_PORT: 8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_started
+    networks:
+      - task-network
+    command: go run cmd/seeder/main.go
+    restart: "no"
+    profiles:
+      - seeder
+
   frontend:
     image: nginx:alpine
     container_name: task-api-frontend
