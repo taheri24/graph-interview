@@ -7,6 +7,7 @@ import (
 	"taheri24.ir/graph1/internal/handlers"
 	"taheri24.ir/graph1/internal/routers"
 	"taheri24.ir/graph1/pkg/config"
+	"taheri24.ir/graph1/pkg/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -32,29 +33,24 @@ import (
 func main() {
 	// Load configuration
 	cfg := config.Load()
-
 	// Initialize database
-	db, err := database.NewDatabase(cfg)
-	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
-	}
+	db := utils.Must(database.NewDatabase(cfg))
 	defer db.Close()
-
-	// Set up Gin router
-	router := gin.Default()
-
-	// Setup routers
-	routers.SetupHealthRouter(router, db)
-
-	// Initialize task handler
+	if err := db.Health(); err != nil {
+		log.Fatal(err)
+	}
+	// Initialize handlers
 	taskHandler := handlers.NewTaskHandler(db)
-	routers.SetupTaskRouter(router, taskHandler)
 
-	routers.SetupSwaggerRouter(router)
-
-	// Start server
-	log.Printf("Server starting on port %s", cfg.Server.Port)
-	if err := router.Run(":" + cfg.Server.Port); err != nil {
+	// Set up rootRouter
+	rootRouter := gin.Default()
+	{
+		routers.SetupHealthRouter(rootRouter, db)
+		routers.SetupTaskRouter(rootRouter, taskHandler)
+		routers.SetupSwaggerRouter(rootRouter)
+	}
+	log.Printf("Server starting on port %q", cfg.Server.Port)
+	if err := rootRouter.Run(":" + cfg.Server.Port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }

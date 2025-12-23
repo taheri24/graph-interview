@@ -6,6 +6,8 @@ import (
 )
 
 type DatabaseConfig struct {
+	DATABASE_URL string
+
 	Host     string
 	Port     string
 	User     string
@@ -24,12 +26,13 @@ type Config struct {
 func Load() *Config {
 	return &Config{
 		Database: DatabaseConfig{
-			Host:     getEnv("DB_HOST", "localhost"),
-			Port:     getEnv("DB_PORT", "5432"),
-			User:     getEnv("DB_USER", "postgres"),
-			Password: getEnv("DB_PASSWORD", ""),
-			DBName:   getEnv("DB_NAME", "taskdb"),
-			SSLMode:  getEnv("DB_SSLMODE", "disable"),
+			DATABASE_URL: getEnv("DB_URL", ""),
+			Host:         getEnv("DB_HOST", "localhost"),
+			Port:         getEnv("DB_PORT", "5432"),
+			User:         getEnv("DB_USER", "postgres"),
+			Password:     getEnv("DB_PASSWORD", ""),
+			DBName:       getEnv("DB_NAME", "taskdb"),
+			SSLMode:      getEnv("DB_SSLMODE", "disable"),
 		},
 		Server: struct {
 			Port string
@@ -40,6 +43,9 @@ func Load() *Config {
 }
 
 func (c *Config) GetDatabaseDSN() string {
+	if c.Database.DATABASE_URL != "" {
+		return c.Database.DATABASE_URL
+	}
 	if c.Database.Password == "" {
 		return fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s",
 			c.Database.Host,

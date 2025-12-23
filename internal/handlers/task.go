@@ -56,12 +56,6 @@ type TaskListResponse struct {
 	HasPrevious bool           `json:"has_previous"`
 }
 
-// ErrorResponse represents an error response
-type ErrorResponse struct {
-	Error   string `json:"error"`
-	Message string `json:"message,omitempty"`
-}
-
 // CreateTask handles POST /tasks
 // @Summary Create a new task
 // @Description Create a new task with the provided information
@@ -76,7 +70,7 @@ type ErrorResponse struct {
 func (h *TaskHandler) CreateTask(c *gin.Context) {
 	var req CreateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		c.JSON(http.StatusBadRequest, NewErr(err))
 		return
 	}
 
@@ -92,7 +86,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	}
 
 	if err := h.repo.Create(&task); err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to create task"})
+		c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to create task"))
 		return
 	}
 
@@ -140,7 +134,7 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 
 	tasks, total, err := h.repo.GetAll(page, limit, status, assignee)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to fetch tasks"})
+		c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to fetch tasks"))
 		return
 	}
 
@@ -186,13 +180,13 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid task ID"})
+		c.JSON(http.StatusBadRequest, NewErrorResponse("Invalid task ID"))
 		return
 	}
 
 	task, err := h.repo.GetByID(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, ErrorResponse{Error: "Task not found"})
+		c.JSON(http.StatusNotFound, NewErrorResponse("Task not found"))
 		return
 	}
 
@@ -226,19 +220,19 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid task ID"})
+		c.JSON(http.StatusBadRequest, NewErrorResponse("Invalid task ID"))
 		return
 	}
 
 	task, err := h.repo.GetByID(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, ErrorResponse{Error: "Task not found"})
+		c.JSON(http.StatusNotFound, NewErrorResponse("Task not found"))
 		return
 	}
 
 	var req UpdateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		c.JSON(http.StatusBadRequest, NewErr(err))
 		return
 	}
 
@@ -257,7 +251,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	}
 
 	if err := h.repo.Update(task); err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to update task"})
+		c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to update task"))
 		return
 	}
 
@@ -290,12 +284,12 @@ func (h *TaskHandler) DeleteTask(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid task ID"})
+		c.JSON(http.StatusBadRequest, NewErrorResponse("Invalid task ID"))
 		return
 	}
 
 	if err := h.repo.Delete(id); err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to delete task"})
+		c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to delete task"))
 		return
 	}
 

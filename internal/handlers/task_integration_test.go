@@ -31,14 +31,7 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 
 	// Use test database configuration
 	testConfig := &config.Config{
-		Database: struct {
-			Host     string
-			Port     string
-			User     string
-			Password string
-			DBName   string
-			SSLMode  string
-		}{
+		Database: config.DatabaseConfig{
 			Host:     getEnv("TEST_DB_HOST", "localhost"),
 			Port:     getEnv("TEST_DB_PORT", "5433"),
 			User:     getEnv("TEST_DB_USER", "postgres"),
