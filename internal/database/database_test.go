@@ -165,9 +165,83 @@ func (suite *DatabaseTestSuite) TestHealthError() {
 	suite.db.Health()
 }
 
+// TestNewDatabaseSQLite tests SQLite database initialization
+func TestNewDatabaseSQLite(t *testing.T) {
+	cfg := &config.Config{
+		Database: config.DatabaseConfig{
+			Type:   "sqlite",
+			DBName: ":memory:", // Use in-memory SQLite for testing
+		},
+	}
+
+	db, err := database.NewDatabase(cfg)
+	assert.NoError(t, err)
+	assert.NotNil(t, db)
+
+	// Test migration
+	err = database.Migrate(db.DB)
+	assert.NoError(t, err)
+
+	// Test health check
+	err = db.Health()
+	assert.NoError(t, err)
+
+	// Clean up
+	err = db.Close()
+	assert.NoError(t, err)
+}
+
+// TestNewDatabaseSQLiteFile tests SQLite with in-memory database
+func TestNewDatabaseSQLiteInMemory(t *testing.T) {
+	cfg := &config.Config{
+		Database: config.DatabaseConfig{
+			Type:   "sqlite",
+			DBName: ":memory:",
+		},
+	}
+
+	db, err := database.NewDatabase(cfg)
+	assert.NoError(t, err)
+	assert.NotNil(t, db)
+
+	// Test migration
+	err = database.Migrate(db.DB)
+	assert.NoError(t, err)
+
+	// Test health check
+	err = db.Health()
+	assert.NoError(t, err)
+
+	// Clean up
+	err = db.Close()
+	assert.NoError(t, err)
+}
+
+// TestNewDatabasePostgres tests PostgreSQL database initialization (connection will fail in test environment)
+func TestNewDatabasePostgres(t *testing.T) {
+	cfg := &config.Config{
+		Database: config.DatabaseConfig{
+			Type:     "postgres",
+			Host:     "localhost",
+			Port:     "5432",
+			User:     "postgres",
+			Password: "password",
+			DBName:   "testdb",
+			SSLMode:  "disable",
+		},
+	}
+
+	// This will fail to connect but tests the driver selection logic
+	db, err := database.NewDatabase(cfg)
+	assert.Error(t, err)
+	assert.Nil(t, db)
+	assert.Contains(t, err.Error(), "failed to connect to database")
+}
+
 func TestNewDatabase(t *testing.T) {
 	cfg := &config.Config{
 		Database: config.DatabaseConfig{
+			Type:     "postgres",
 			Host:     "localhost",
 			Port:     "5432",
 			User:     "postgres",
@@ -189,6 +263,7 @@ func TestNewDatabase(t *testing.T) {
 	// Test with different config
 	cfg2 := &config.Config{
 		Database: config.DatabaseConfig{
+			Type:     "postgres",
 			Host:     "invalidhost",
 			Port:     "9999",
 			User:     "invaliduser",

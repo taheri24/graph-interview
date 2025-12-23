@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"database/sql"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -186,7 +188,11 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 
 	task, err := h.repo.GetByID(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, NewErrorResponse("Task not found"))
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, NewErrorResponse("Task not found"))
+		} else {
+			c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to get task"))
+		}
 		return
 	}
 
@@ -226,7 +232,11 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 
 	task, err := h.repo.GetByID(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, NewErrorResponse("Task not found"))
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, NewErrorResponse("Task not found"))
+		} else {
+			c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to get task"))
+		}
 		return
 	}
 
@@ -289,7 +299,11 @@ func (h *TaskHandler) DeleteTask(c *gin.Context) {
 	}
 
 	if err := h.repo.Delete(id); err != nil {
-		c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to delete task"))
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, NewErrorResponse("Task not found"))
+		} else {
+			c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to delete task"))
+		}
 		return
 	}
 

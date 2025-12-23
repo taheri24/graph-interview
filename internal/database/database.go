@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -75,9 +76,16 @@ func (d *Database) Delete(id uuid.UUID) error {
 }
 
 func NewDatabase(cfg *config.Config) (*Database, error) {
-	dsn := cfg.GetDatabaseDSN()
+	dsn := cfg.Database.String()
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+	var dialector gorm.Dialector
+	if cfg.Database.Type == "postgres" {
+		dialector = postgres.Open(dsn)
+	} else {
+		dialector = sqlite.Open(dsn)
+	}
+
+	db, err := gorm.Open(dialector, &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})
 	if err != nil {

@@ -34,3 +34,6 @@ Thumbs.db
 *.log
 coverage.html
 steps/
+
+# SQLite database files
+*.db

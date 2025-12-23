@@ -7,8 +7,8 @@ import (
 )
 
 type DatabaseConfig struct {
-	DATABASE_URL string
-
+	DSN      string // Database connection string (overrides individual fields)
+	Type     string // Database type: "postgres" or "sqlite"
 	Host     string
 	Port     string
 	User     string
@@ -35,13 +35,14 @@ type Config struct {
 func Load() *Config {
 	return &Config{
 		Database: DatabaseConfig{
-			DATABASE_URL: getEnv("DB_URL", ""),
-			Host:         getEnv("DB_HOST", "localhost"),
-			Port:         getEnv("DB_PORT", "5432"),
-			User:         getEnv("DB_USER", "postgres"),
-			Password:     getEnv("DB_PASSWORD", ""),
-			DBName:       getEnv("DB_NAME", "taskdb"),
-			SSLMode:      getEnv("DB_SSLMODE", "disable"),
+			DSN:      getEnv("DB_URL", ""),
+			Type:     getEnv("DATABASE_TYPE", "postgres"),
+			Host:     getEnv("DB_HOST", "localhost"),
+			Port:     getEnv("DB_PORT", "5432"),
+			User:     getEnv("DB_USER", "postgres"),
+			Password: getEnv("DB_PASSWORD", ""),
+			DBName:   getEnv("DB_NAME", "taskdb"),
+			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 		},
 		Redis: RedisConfig{
 			Host:     getEnv("REDIS_HOST", "localhost"),
@@ -57,27 +58,39 @@ func Load() *Config {
 	}
 }
 
-func (c *Config) GetDatabaseDSN() string {
-	if c.Database.DATABASE_URL != "" {
-		return c.Database.DATABASE_URL
+func (d *DatabaseConfig) String() string {
+	if d.DSN != "" {
+		return d.DSN
 	}
-	if c.Database.Password == "" {
-		return fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s",
-			c.Database.Host,
-			c.Database.Port,
-			c.Database.User,
-			c.Database.DBName,
-			c.Database.SSLMode,
+
+	switch d.Type {
+	case "postgres":
+		if d.Password == "" {
+			return fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s",
+				d.Host,
+				d.Port,
+				d.User,
+				d.DBName,
+				d.SSLMode,
+			)
+		}
+		return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+			d.Host,
+			d.Port,
+			d.User,
+			d.Password,
+			d.DBName,
+			d.SSLMode,
 		)
+	case "sqlite":
+		if d.DBName == ":memory" {
+			return d.DBName
+		}
+		// Default to SQLite
+		return fmt.Sprintf("%s.db", d.DBName)
+	default:
+		panic(fmt.Sprintf("invalid database type: %s", d.Type))
 	}
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		c.Database.Host,
-		c.Database.Port,
-		c.Database.User,
-		c.Database.Password,
-		c.Database.DBName,
-		c.Database.SSLMode,
-	)
 }
 
 func getEnv(key, defaultValue string) string {

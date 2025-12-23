@@ -215,6 +215,28 @@ func (suite *TaskHandlerTestSuite) TestGetTask_InvalidID() {
 	assert.Equal(suite.T(), "Invalid task ID", response.Error)
 }
 
+func (suite *TaskHandlerTestSuite) TestGetTask_DatabaseError() {
+	// Setup
+	taskID := uuid.New()
+	suite.mockRepo.GetByIDFunc = func(id uuid.UUID) (*models.Task, error) {
+		return nil, assert.AnError
+	}
+
+	// Execute
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/tasks/"+taskID.String(), nil)
+	suite.router.GET("/tasks/:id", suite.handler.GetTask)
+	suite.router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(suite.T(), http.StatusInternalServerError, w.Code)
+
+	var response handlers.ErrorResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "Failed to get task", response.Error)
+}
+
 func (suite *TaskHandlerTestSuite) TestGetTasks_Success() {
 	// Setup
 	expectedTasks := []models.Task{
@@ -339,12 +361,12 @@ func (suite *TaskHandlerTestSuite) TestDeleteTask_NotFound() {
 	suite.router.ServeHTTP(w, req)
 
 	// Assert
-	assert.Equal(suite.T(), http.StatusInternalServerError, w.Code)
+	assert.Equal(suite.T(), http.StatusNotFound, w.Code)
 
 	var response handlers.ErrorResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), "Failed to delete task", response.Error)
+	assert.Equal(suite.T(), "Task not found", response.Error)
 }
 
 func (suite *TaskHandlerTestSuite) TestDeleteTask_InvalidID() {
@@ -361,6 +383,28 @@ func (suite *TaskHandlerTestSuite) TestDeleteTask_InvalidID() {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), "Invalid task ID", response.Error)
+}
+
+func (suite *TaskHandlerTestSuite) TestDeleteTask_DatabaseError() {
+	// Setup
+	taskID := uuid.New()
+	suite.mockRepo.DeleteFunc = func(id uuid.UUID) error {
+		return assert.AnError
+	}
+
+	// Execute
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("DELETE", "/tasks/"+taskID.String(), nil)
+	suite.router.DELETE("/tasks/:id", suite.handler.DeleteTask)
+	suite.router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(suite.T(), http.StatusInternalServerError, w.Code)
+
+	var response handlers.ErrorResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "Failed to delete task", response.Error)
 }
 
 func (suite *TaskHandlerTestSuite) TestUpdateTask_NotFound() {
@@ -429,6 +473,68 @@ func (suite *TaskHandlerTestSuite) TestUpdateTask_InvalidRequest() {
 
 	// Assert
 	assert.Equal(suite.T(), http.StatusBadRequest, w.Code)
+}
+
+func (suite *TaskHandlerTestSuite) TestUpdateTask_DatabaseError() {
+	// Setup
+	taskID := uuid.New()
+	existingTask := &models.Task{
+		ID:          taskID,
+		Title:       "Original Title",
+		Description: "Original Description",
+		Status:      models.StatusPending,
+		Assignee:    "original@example.com",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	updateReq := handlers.UpdateTaskRequest{
+		Title: stringPtr("Updated Title"),
+	}
+
+	suite.mockRepo.GetByIDFunc = func(id uuid.UUID) (*models.Task, error) {
+		if id == taskID {
+			return existingTask, nil
+		}
+		return nil, sql.ErrNoRows
+	}
+
+	suite.mockRepo.UpdateFunc = func(task *models.Task) error {
+		return assert.AnError
+	}
+
+	// Execute
+	w := httptest.NewRecorder()
+	body, _ := json.Marshal(updateReq)
+	req, _ := http.NewRequest("PUT", "/tasks/"+taskID.String(), bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	suite.router.PUT("/tasks/:id", suite.handler.UpdateTask)
+	suite.router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(suite.T(), http.StatusInternalServerError, w.Code)
+}
+
+func (suite *TaskHandlerTestSuite) TestGetTasks_InvalidPage() {
+	// Execute
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/tasks?page=invalid", nil)
+	suite.router.GET("/tasks", suite.handler.GetTasks)
+	suite.router.ServeHTTP(w, req)
+
+	// Assert - should default to page 1
+	assert.Equal(suite.T(), http.StatusOK, w.Code)
+}
+
+func (suite *TaskHandlerTestSuite) TestGetTasks_InvalidLimit() {
+	// Execute
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/tasks?limit=invalid", nil)
+	suite.router.GET("/tasks", suite.handler.GetTasks)
+	suite.router.ServeHTTP(w, req)
+
+	// Assert - should default to limit 10
+	assert.Equal(suite.T(), http.StatusOK, w.Code)
 }
 
 func (suite *TaskHandlerTestSuite) TestCreateTask_DatabaseError() {

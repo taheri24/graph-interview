@@ -16,7 +16,7 @@ const (
 )
 
 type Task struct {
-	ID          uuid.UUID      `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	ID          uuid.UUID      `json:"id" gorm:"type:uuid;primary_key"`
 	Title       string         `json:"title" gorm:"not null"`
 	Description string         `json:"description" gorm:"type:text"`
 	Status      TaskStatus     `json:"status" gorm:"type:varchar(20);default:'pending'"`
@@ -24,6 +24,14 @@ type Task struct {
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`
+}
+
+// BeforeCreate hook to generate UUID for new tasks
+func (t *Task) BeforeCreate(tx *gorm.DB) error {
+	if t.ID == uuid.Nil {
+		t.ID = uuid.New()
+	}
+	return nil
 }
 
 func (Task) TableName() string {

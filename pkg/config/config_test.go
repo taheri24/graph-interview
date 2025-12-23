@@ -69,10 +69,11 @@ func TestLoad(t *testing.T) {
 	assert.Equal(t, "9000", cfg.Server.Port)
 }
 
-func TestGetDatabaseDSN(t *testing.T) {
+func TestDatabaseConfigString(t *testing.T) {
 	// Test DSN without password
 	cfg := &config.Config{
 		Database: config.DatabaseConfig{
+			Type:     "postgres",
 			Host:     "localhost",
 			Port:     "5432",
 			User:     "postgres",
@@ -82,13 +83,13 @@ func TestGetDatabaseDSN(t *testing.T) {
 		},
 	}
 
-	dsn := cfg.GetDatabaseDSN()
+	dsn := cfg.Database.String()
 	expected := "host=localhost port=5432 user=postgres dbname=testdb sslmode=disable"
 	assert.Equal(t, expected, dsn)
 
 	// Test DSN with password
 	cfg.Database.Password = "password"
-	dsn = cfg.GetDatabaseDSN()
+	dsn = cfg.Database.String()
 	expected = "host=localhost port=5432 user=postgres password=password dbname=testdb sslmode=disable"
 	assert.Equal(t, expected, dsn)
 
@@ -100,9 +101,20 @@ func TestGetDatabaseDSN(t *testing.T) {
 	cfg.Database.DBName = "customdb"
 	cfg.Database.SSLMode = "require"
 
-	dsn = cfg.GetDatabaseDSN()
+	dsn = cfg.Database.String()
 	expected = "host=customhost port=5433 user=customuser password=custompass dbname=customdb sslmode=require"
 	assert.Equal(t, expected, dsn)
+
+	// Test SQLite DSN
+	cfg.Database.Type = "sqlite"
+	cfg.Database.DBName = "testdb"
+	dsn = cfg.Database.String()
+	assert.Equal(t, "testdb.db", dsn)
+
+	// Test SQLite DSN with :memory
+	cfg.Database.DBName = ":memory"
+	dsn = cfg.Database.String()
+	assert.Equal(t, ":memory", dsn)
 }
 
 func TestGetEnv(t *testing.T) {
@@ -122,4 +134,38 @@ func TestGetEnv(t *testing.T) {
 	os.Unsetenv("DB_HOST")
 	cfg = config.Load()
 	assert.Equal(t, "localhost", cfg.Database.Host) // default value
+}
+
+func TestGetEnvAsInt(t *testing.T) {
+	// Test getting existing integer environment variable
+	os.Setenv("TEST_INT_VAR", "42")
+	defer os.Unsetenv("TEST_INT_VAR")
+
+	// Since getEnvAsInt is not exported, we test it indirectly through Load
+	origValue := os.Getenv("REDIS_DB")
+	defer os.Setenv("REDIS_DB", origValue)
+
+	os.Setenv("REDIS_DB", "5")
+	cfg := config.Load()
+	assert.Equal(t, 5, cfg.Redis.DB)
+
+	// Test getting non-existing environment variable (should return default)
+	os.Unsetenv("REDIS_DB")
+	cfg = config.Load()
+	assert.Equal(t, 0, cfg.Redis.DB) // default value
+
+	// Test invalid integer (should return default)
+	os.Setenv("REDIS_DB", "invalid")
+	cfg = config.Load()
+	assert.Equal(t, 0, cfg.Redis.DB) // default value
+}
+
+func TestDatabaseConfigString_InvalidType(t *testing.T) {
+	cfg := &config.Config{
+		Database: config.DatabaseConfig{
+			Type: "invalid",
+		},
+	}
+
+	assert.Panics(t, func() { _ = cfg.Database.String() })
 }
