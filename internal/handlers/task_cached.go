@@ -3,7 +3,6 @@ package handlers
 import (
 	"net/http"
 	"strconv"
-	"time"
 
 	"taheri24.ir/graph1/internal/cache"
 	"taheri24.ir/graph1/internal/database"
@@ -16,10 +15,10 @@ import (
 
 type CachedTaskHandler struct {
 	repo  database.TaskRepository
-	cache *cache.RedisCache
+	cache cache.CacheInterface[models.Task]
 }
 
-func NewCachedTaskHandler(repo database.TaskRepository, cache *cache.RedisCache) *CachedTaskHandler {
+func NewCachedTaskHandler(repo database.TaskRepository, cache cache.CacheInterface[models.Task]) *CachedTaskHandler {
 	return &CachedTaskHandler{
 		repo:  repo,
 		cache: cache,
@@ -29,7 +28,7 @@ func NewCachedTaskHandler(repo database.TaskRepository, cache *cache.RedisCache)
 // GetTasks handles GET /tasks with Redis caching
 func (h *CachedTaskHandler) GetTasks(c *gin.Context) {
 	// Try to get from cache first
-	tasks, err := h.cache.GetTasks()
+	tasks, err := h.cache.GetAll()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, NewErrorResponse("Cache error"))
 		return
@@ -57,7 +56,7 @@ func (h *CachedTaskHandler) GetTasks(c *gin.Context) {
 		}
 
 		// Cache the result for 5 minutes (only cache the tasks, not pagination metadata)
-		if err := h.cache.SetTasks(tasks, 5*time.Minute); err != nil {
+		if err := h.cache.SetAll(tasks); err != nil {
 			// Log error but don't fail the request
 		}
 
@@ -135,24 +134,26 @@ func (h *CachedTaskHandler) GetTask(c *gin.Context) {
 	}
 
 	// Try to get from cache first
-	task, err := h.cache.GetTask(id.String())
+	task, err := h.cache.Get(id.String())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, NewErrorResponse("Cache error"))
 		return
 	}
 
 	// Cache miss - fetch from database
-	if task == nil {
-		task, err = h.repo.GetByID(id)
+	var zeroTask models.Task
+	if task == zeroTask {
+		taskPtr, err := h.repo.GetByID(id)
 		if err != nil {
 			c.JSON(http.StatusNotFound, NewErrorResponse("Task not found"))
 			return
 		}
 
 		// Cache the result for 5 minutes
-		if err := h.cache.SetTask(task, 5*time.Minute); err != nil {
+		if err := h.cache.Set(id.String(), *taskPtr); err != nil {
 			// Log error but don't fail the request
 		}
+		task = *taskPtr
 	}
 
 	response := TaskResponse{
@@ -193,7 +194,7 @@ func (h *CachedTaskHandler) CreateTask(c *gin.Context) {
 	}
 
 	// Invalidate tasks list cache
-	if err := h.cache.InvalidateTasks(); err != nil {
+	if err := h.cache.InvalidateAll(); err != nil {
 		// Log error but don't fail the request
 	}
 
@@ -257,8 +258,8 @@ func (h *CachedTaskHandler) UpdateTask(c *gin.Context) {
 	}
 
 	// Invalidate caches
-	h.cache.InvalidateTasks()
-	h.cache.InvalidateTask(id.String())
+	h.cache.InvalidateAll()
+	h.cache.Invalidate(id.String())
 
 	response := TaskResponse{
 		ID:          existingTask.ID,
@@ -288,8 +289,8 @@ func (h *CachedTaskHandler) DeleteTask(c *gin.Context) {
 	}
 
 	// Invalidate caches
-	h.cache.InvalidateTasks()
-	h.cache.InvalidateTask(id.String())
+	h.cache.InvalidateAll()
+	h.cache.Invalidate(id.String())
 
 	// Update tasks count metric
 	if _, total, err := h.repo.GetAll(1, 1, "", ""); err == nil {

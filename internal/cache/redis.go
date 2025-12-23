@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"taheri24.ir/graph1/internal/models"
+	"taheri24.ir/graph1/pkg/utils"
 )
 
 // RedisCache handles Redis caching operations
@@ -42,85 +42,36 @@ func (r *RedisCache) Close() error {
 	return r.client.Close()
 }
 
-// GetTasks retrieves cached tasks list
-func (r *RedisCache) GetTasks() ([]models.Task, error) {
-	data, err := r.client.Get(r.ctx, "tasks:list").Result()
-	if err == redis.Nil {
-		return nil, nil // Cache miss
-	}
+// Get retrieves data from Redis cache
+func (r *RedisCache) Get(key string, data any) error {
+	return r.client.Get(r.ctx, key).Scan(data)
+}
+
+// Set stores data in Redis cache
+func (r *RedisCache) Set(key string, data any, expiration time.Duration) error {
+	return r.client.Set(r.ctx, key, data, expiration).Err()
+}
+
+// Get gets data from Redis cache
+func Get[T any](r *RedisCache, format string, args ...any) (T, error) {
+	key := fmt.Sprintf(format, args...)
+	cmd := r.client.Get(r.ctx, key)
+	var blank T
+	raw, err := cmd.Bytes()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get tasks from cache: %w", err)
+		return blank, err
 	}
+	return utils.JsonDecode[T](raw), nil
 
-	var tasks []models.Task
-	if err := json.Unmarshal([]byte(data), &tasks); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal cached tasks: %w", err)
-	}
-
-	return tasks, nil
 }
 
-// SetTasks caches the tasks list with expiration
-func (r *RedisCache) SetTasks(tasks []models.Task, expiration time.Duration) error {
-	data, err := json.Marshal(tasks)
+// Set sets data to Redis cache
+func Set[T any](r *RedisCache, value T, format string, args ...any) error {
+	key := fmt.Sprintf(format, args...)
+	data, err := json.Marshal(value)
 	if err != nil {
-		return fmt.Errorf("failed to marshal tasks: %w", err)
+		return err
 	}
 
-	if err := r.client.Set(r.ctx, "tasks:list", data, expiration).Err(); err != nil {
-		return fmt.Errorf("failed to set tasks in cache: %w", err)
-	}
-
-	return nil
-}
-
-// InvalidateTasks removes the tasks list from cache
-func (r *RedisCache) InvalidateTasks() error {
-	if err := r.client.Del(r.ctx, "tasks:list").Err(); err != nil {
-		return fmt.Errorf("failed to invalidate tasks cache: %w", err)
-	}
-	return nil
-}
-
-// GetTask retrieves a single cached task by ID
-func (r *RedisCache) GetTask(id string) (*models.Task, error) {
-	key := fmt.Sprintf("task:%s", id)
-	data, err := r.client.Get(r.ctx, key).Result()
-	if err == redis.Nil {
-		return nil, nil // Cache miss
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to get task from cache: %w", err)
-	}
-
-	var task models.Task
-	if err := json.Unmarshal([]byte(data), &task); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal cached task: %w", err)
-	}
-
-	return &task, nil
-}
-
-// SetTask caches a single task with expiration
-func (r *RedisCache) SetTask(task *models.Task, expiration time.Duration) error {
-	key := fmt.Sprintf("task:%s", task.ID)
-	data, err := json.Marshal(task)
-	if err != nil {
-		return fmt.Errorf("failed to marshal task: %w", err)
-	}
-
-	if err := r.client.Set(r.ctx, key, data, expiration).Err(); err != nil {
-		return fmt.Errorf("failed to set task in cache: %w", err)
-	}
-
-	return nil
-}
-
-// InvalidateTask removes a single task from cache
-func (r *RedisCache) InvalidateTask(id string) error {
-	key := fmt.Sprintf("task:%s", id)
-	if err := r.client.Del(r.ctx, key).Err(); err != nil {
-		return fmt.Errorf("failed to invalidate task cache: %w", err)
-	}
-	return nil
+	return r.client.Set(r.ctx, key, data, 0).Err()
 }

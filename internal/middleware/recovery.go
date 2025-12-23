@@ -16,10 +16,16 @@ type ErrorResponse struct {
 func Recovery() gin.HandlerFunc {
 	return gin.CustomRecovery(func(c *gin.Context, recovered interface{}) {
 		if err, ok := recovered.(error); ok {
-			c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+			FullErrorCapture(err)
+			c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		} else {
 			c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid request"})
 		}
 		c.Abort()
 	})
+}
+
+// TODO: implement FullErrorCapture with log and persis error details on the file
+func FullErrorCapture(err error) {
+
 }
