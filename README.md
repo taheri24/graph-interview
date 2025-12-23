@@ -1,6 +1,6 @@
 # Task Management API
 
-A comprehensive RESTful API for managing tasks built with Go, Gin, and PostgreSQL using GORM. Features full CRUD operations, comprehensive testing, and complete API documentation.
+A comprehensive RESTful API for managing tasks built with Go, Gin, and PostgreSQL using GORM. Features full CRUD operations, Redis caching, Prometheus monitoring, and complete API documentation.
 
 ## Features
 
@@ -9,8 +9,12 @@ A comprehensive RESTful API for managing tasks built with Go, Gin, and PostgreSQ
 - Pagination and filtering support
 - UUID-based task identification
 - PostgreSQL with GORM ORM
+- Redis caching for improved performance
+- Prometheus metrics and monitoring
+- Request tracing with unique IDs
 - Containerized with Docker Compose
 - Health check endpoint
+- Swagger API documentation
 
 ## Tech Stack
 
@@ -18,25 +22,262 @@ A comprehensive RESTful API for managing tasks built with Go, Gin, and PostgreSQ
 - **Framework**: Gin
 - **Database**: PostgreSQL
 - **ORM**: GORM
+- **Cache**: Redis
+- **Monitoring**: Prometheus
+- **Documentation**: Swagger/OpenAPI
+- **Testing**: Go testing framework
 - **Containerization**: Docker & Docker Compose
+
+## Architecture
+
+```mermaid
+graph TB
+    Client[Client] --> LB[Load Balancer]
+    LB --> API[API Gateway]
+    
+    API --> Auth[Authentication Middleware]
+    Auth --> Trace[Request ID Middleware]
+    Trace --> Metrics[Prometheus Metrics]
+    Metrics --> Recovery[Recovery Middleware]
+    
+    Recovery --> Router[Router]
+    Router --> Tasks[Task Handler]
+    Router --> Health[Health Handler]
+    Router --> Swagger[Swagger Handler]
+    
+    Tasks --> Cache[(Redis Cache)]
+    Tasks --> DB[(PostgreSQL)]
+    
+    Metrics --> Prometheus[Prometheus Server]
+    Prometheus --> Grafana[Grafana Dashboard]
+    
+    subgraph "Cache Layer"
+        Cache --> CacheInvalidation[Cache Invalidation]
+        CacheInvalidation --> Tasks
+    end
+    
+    subgraph "Monitoring Stack"
+        Prometheus --> AlertManager[Alert Manager]
+        Grafana --> Prometheus
+    end
+```
 
 ## Quick Start
 
 ### Prerequisites
 
 - Docker and Docker Compose installed
+- Go 1.25.5 or later (for local development)
+- PostgreSQL and Redis (for local development)
 
 ### Running the Application
 
-1. Clone the repository
-2. Set up PostgreSQL database (see Development section)
-3. Run the application with Docker Compose:
+#### With Docker Compose (Recommended)
 
+1. Clone the repository:
 ```bash
-docker-compose up --build
+git clone <repository-url>
+cd graph-interview
 ```
 
-Or run locally:
+2. Start all services:
+```bash
+docker-compose up -d
+```
+
+3. The API will be available at `http://localhost:8080`
+
+#### Local Development
+
+1. Set up environment variables:
+```bash
+export DB_HOST=localhost
+export DB_PORT=5432
+export DB_USER=postgres
+export DB_PASSWORD=password
+export DB_NAME=taskdb
+
+export REDIS_HOST=localhost
+export REDIS_PORT=6379
+export REDIS_PASSWORD=""
+export REDIS_DB=0
+
+export SERVER_PORT=8080
+```
+
+2. Install dependencies:
+```bash
+go mod download
+```
+
+3. Run the application:
+```bash
+go run cmd/api/main.go
+```
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DB_HOST` | localhost | PostgreSQL host |
+| `DB_PORT` | 5432 | PostgreSQL port |
+| `DB_USER` | postgres | PostgreSQL username |
+| `DB_PASSWORD` | - | PostgreSQL password |
+| `DB_NAME` | taskdb | Database name |
+| `REDIS_HOST` | localhost | Redis host |
+| `REDIS_PORT` | 6379 | Redis port |
+| `REDIS_PASSWORD` | - | Redis password |
+| `REDIS_DB` | 0 | Redis database number |
+| `SERVER_PORT` | 8080 | API server port |
+
+## API Endpoints
+
+### Tasks
+- `GET /tasks` - List all tasks with pagination and filtering
+- `POST /tasks` - Create a new task
+- `GET /tasks/{id}` - Get a specific task
+- `PUT /tasks/{id}` - Update a task
+- `DELETE /tasks/{id}` - Delete a task
+
+### Monitoring
+- `GET /metrics` - Prometheus metrics endpoint
+- `GET /health` - Health check endpoint
+
+### Documentation
+- `GET /swagger` - Swagger UI documentation
+
+## Monitoring & Metrics
+
+The application exposes Prometheus metrics at `/metrics`:
+
+### Available Metrics
+
+- `requests_total` - Total HTTP requests with method, path, and status labels
+- `request_latency_histogram_seconds` - Request latency histogram with method and path labels
+- `tasks_count` - Current number of tasks in the database
+
+### Request Tracing
+
+Every request includes a unique `X-Request-ID` header for tracing and debugging.
+
+## Caching
+
+The application uses Redis for caching:
+
+- **GET /tasks** - Cached for 5 minutes with cache-aside pattern
+- **GET /tasks/{id}** - Cached for 5 minutes
+- **Cache Invalidation** - Automatic invalidation on create/update/delete operations
+
+## Testing
+
+Run the test suite:
+
+```bash
+# Run all tests
+./test.sh
+
+# Run tests with coverage
+go test ./... -cover
+
+# Run tests with coverage report
+go test ./... -coverprofile=coverage.out
+go tool cover -html=coverage.out -o coverage.html
+```
+
+## Development
+
+### Local Development Setup
+
+1. Install dependencies:
+```bash
+go mod download
+```
+
+2. Set up PostgreSQL and Redis:
+```bash
+# Using Docker
+docker run --name postgres-dev -e POSTGRES_PASSWORD=password -p 5432:5432 -d postgres:15
+docker run --name redis-dev -p 6379:6379 -d redis:7
+```
+
+3. Run migrations:
+```bash
+go run cmd/migrate/main.go
+```
+
+4. Run the application:
+```bash
+go run cmd/api/main.go
+```
+
+### Code Quality
+
+```bash
+# Run linting
+./lint.sh
+
+# Run tests
+./test.sh
+
+# Format code
+go fmt ./...
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Add tests for new functionality
+5. Ensure all tests pass (`./test.sh`)
+6. Commit your changes (`git commit -m 'Add amazing feature'`)
+7. Push to the branch (`git push origin feature/amazing-feature`)
+8. Open a Pull Request
+
+### Code Style
+
+- Follow Go conventions and best practices
+- Write comprehensive tests for new features
+- Update documentation as needed
+- Use meaningful commit messages
+
+## Deployment
+
+### Docker Deployment
+
+```bash
+# Build the image
+docker build -t task-api .
+
+# Run with Docker Compose
+docker-compose up -d
+```
+
+### Environment Configuration
+
+For production deployment, ensure the following environment variables are set:
+
+```bash
+# Database
+DB_HOST=your-db-host
+DB_PORT=5432
+DB_USER=your-db-user
+DB_PASSWORD=your-db-password
+DB_NAME=taskdb
+
+# Redis
+REDIS_HOST=your-redis-host
+REDIS_PORT=6379
+REDIS_PASSWORD=your-redis-password
+REDIS_DB=0
+
+# Server
+SERVER_PORT=8080
+```
+
+## License
+
+This project is licensed under the Apache License 2.0 - see the LICENSE file for details.
 
 ```bash
 # Set environment variables
