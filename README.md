@@ -156,6 +156,39 @@ The application exposes Prometheus metrics at `/metrics`:
 - `request_latency_histogram_seconds` - Request latency histogram with method and path labels
 - `tasks_count` - Current number of tasks in the database
 
+### Prometheus Setup
+
+When using Docker Compose, Prometheus is automatically deployed and configured:
+
+**Access Prometheus UI:**
+```
+http://localhost:9090
+```
+
+**Query Examples:**
+```promql
+# Total requests
+requests_total
+
+# Request rate (requests per second)
+rate(requests_total[1m])
+
+# Average request latency
+histogram_quantile(0.95, rate(request_latency_histogram_seconds_bucket[5m]))
+
+# Current task count
+tasks_count
+
+# Requests by status code
+requests_total{job="task-api"}
+```
+
+**Configuration:**
+- Prometheus configuration: `prometheus.yml`
+- Scrape interval: 10 seconds
+- Data retention: Default (15 days)
+- Metrics endpoint: `http://api:8080/metrics`
+
 ### Request Tracing
 
 Every request includes a unique `X-Request-ID` header for tracing and debugging.
@@ -580,7 +613,7 @@ Common status codes:
 
 ### Running Locally (without Docker)
 
-1. Install Go 1.21+
+1. Install Go 1.25+
 2. Install Air for live reloading: `go install github.com/cosmtrek/air@latest`
 3. Set up PostgreSQL database
 4. Set environment variables
