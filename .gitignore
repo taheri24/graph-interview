@@ -25,7 +25,9 @@ build-errors.log
 # IDE
 .vscode/
 .idea/
-
+docs/swagger.json
+docs/swagger.yaml
+docs/swagger.yml
 # OS
 .DS_Store
 Thumbs.db

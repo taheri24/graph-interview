@@ -3,6 +3,7 @@ package main
 import (
 	"log/slog"
 
+	_ "taheri24.ir/graph1/docs"
 	"taheri24.ir/graph1/internal/database"
 	"taheri24.ir/graph1/internal/handlers"
 	"taheri24.ir/graph1/internal/middleware"
