@@ -28,8 +28,8 @@
 
         <!-- Main Content -->
         <main class="max-w-7xl mx-auto px-4 py-8">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <!-- Sidebar -->
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <!-- Actions Sidebar -->
                 <aside class="lg:col-span-1">
                     <div class="bg-white rounded-lg shadow p-6 sticky top-8">
                         <h2 class="text-lg font-semibold text-slate-900 mb-4">Actions</h2>
@@ -69,22 +69,25 @@
                                 Completed
                             </button>
                         </div>
+                    </div>
+                </aside>
 
-                        <div class="mt-6 pt-6 border-t">
-                            <h3 class="text-sm font-semibold text-slate-700 mb-3">System Info</h3>
-                            <div class="space-y-2 text-sm">
-                                <div class="flex justify-between">
-                                    <span class="text-slate-600">API:</span>
-                                    <span class="text-slate-900 font-medium">http://api:8080</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-600">Metrics:</span>
-                                    <a href="http://localhost:9090" target="_blank" class="text-blue-600 hover:underline">Prometheus</a>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-600">Docs:</span>
-                                    <a href="http://localhost:8080/swagger" target="_blank" class="text-blue-600 hover:underline">Swagger</a>
-                                </div>
+                <!-- System Info Panel -->
+                <aside class="lg:col-span-1">
+                    <div class="bg-white rounded-lg shadow p-6 sticky top-8">
+                        <h3 class="text-lg font-semibold text-slate-900 mb-4">System Info</h3>
+                        <div class="space-y-3 text-sm">
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-600">API:</span>
+                                <span class="text-slate-900 font-medium">http://api:8080</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-600">Metrics:</span>
+                                <a href="http://localhost:9090/" target="_blank" class="text-blue-600 hover:underline">Prometheus</a>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-600">Docs:</span>
+                                <a href="/swagger/index.html" target="_blank" class="text-blue-600 hover:underline">Swagger</a>
                             </div>
                         </div>
                     </div>
