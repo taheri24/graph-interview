@@ -23,12 +23,21 @@ import (
 
 // @license.name Apache 2.0
 // @license.url http://www.apache.org/licenses/LICENSE-2.0.html
-
 // @host localhost:8080
 // @BasePath /
 
 // @externalDocs.description OpenAPI
 // @externalDocs.url https://swagger.io/resources/open-api/
+
+func setupAppServer(db *database.Database, taskHandler *handlers.TaskHandler) *gin.Engine {
+	rootRouter := gin.Default()
+	{
+		routers.SetupHealthRouter(rootRouter, db)
+		routers.SetupTaskRouter(rootRouter, taskHandler)
+		routers.SetupSwaggerRouter(rootRouter)
+	}
+	return rootRouter
+}
 
 func main() {
 	// Load configuration
@@ -43,12 +52,8 @@ func main() {
 	taskHandler := handlers.NewTaskHandler(db)
 
 	// Set up rootRouter
-	rootRouter := gin.Default()
-	{
-		routers.SetupHealthRouter(rootRouter, db)
-		routers.SetupTaskRouter(rootRouter, taskHandler)
-		routers.SetupSwaggerRouter(rootRouter)
-	}
+	rootRouter := setupAppServer(db, taskHandler)
+
 	log.Printf("Server starting on port %q", cfg.Server.Port)
 	if err := rootRouter.Run(":" + cfg.Server.Port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)

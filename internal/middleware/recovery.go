@@ -26,6 +26,6 @@ func Recovery() gin.HandlerFunc {
 }
 
 // TODO: implement FullErrorCapture with log and persis error details on the file
-func FullErrorCapture(err error) {
-
+var FullErrorCapture func(err error) = func(err error) {
+	// Default implementation - will be overridden in tests
 }
