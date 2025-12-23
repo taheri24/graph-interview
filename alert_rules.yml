@@ -1,0 +1,19 @@
+groups:
+  - name: task-api-alerts
+    rules:
+      - alert: HighErrorRate
+        expr: rate(requests_total{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value }} errors per second"
+      - alert: ManualAlert
+        expr: alert_trigger{alert_name="manual"} == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Manual alert triggered"
+          description: "A manual alert has been fired via API"

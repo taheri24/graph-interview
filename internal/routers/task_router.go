@@ -14,7 +14,7 @@ type TaskHandlerInterface interface {
 }
 
 // SetupTaskRouter configures the task-related endpoints
-func SetupTaskRouter(router *gin.Engine, taskHandler TaskHandlerInterface) {
+func SetupTaskRouter(router gin.IRouter, taskHandler TaskHandlerInterface) {
 	api := router.Group("/tasks")
 	{
 		api.POST("", taskHandler.CreateTask)

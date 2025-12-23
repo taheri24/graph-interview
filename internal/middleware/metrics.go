@@ -28,6 +28,12 @@ var (
 		Name: "tasks_count",
 		Help: "Current number of tasks in the database",
 	})
+
+	// alertTrigger is a gauge that can be set to trigger alerts manually
+	alertTrigger = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "alert_trigger",
+		Help: "Manually triggered alert gauge",
+	}, []string{"alert_name"})
 )
 
 // MetricsMiddleware tracks Prometheus metrics for HTTP requests
@@ -55,4 +61,14 @@ func MetricsMiddleware() gin.HandlerFunc {
 // UpdateTasksCount updates the tasks count gauge
 func UpdateTasksCount(count float64) {
 	tasksCount.Set(count)
+}
+
+// TriggerAlert sets the alert trigger gauge to 1 for the given alert name
+func TriggerAlert(alertName string) {
+	alertTrigger.WithLabelValues(alertName).Set(1)
+}
+
+// ResetAlert sets the alert trigger gauge to 0 for the given alert name
+func ResetAlert(alertName string) {
+	alertTrigger.WithLabelValues(alertName).Set(0)
 }

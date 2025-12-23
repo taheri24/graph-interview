@@ -12,7 +12,7 @@ type HealthChecker interface {
 }
 
 // SetupHealthRouter configures the health check endpoint
-func SetupHealthRouter(router *gin.Engine, healthChecker HealthChecker) {
+func SetupHealthRouter(router gin.IRouter, healthChecker HealthChecker) {
 	router.GET("/health", func(c *gin.Context) {
 		if err := healthChecker.Health(); err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{

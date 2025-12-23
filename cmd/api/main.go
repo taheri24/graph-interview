@@ -30,15 +30,16 @@ import (
 // @externalDocs.description OpenAPI
 // @externalDocs.url https://swagger.io/resources/open-api/
 
-func setupAppServer(db *database.Database, taskHandler *handlers.TaskHandler) *gin.Engine {
+func setupAppServer(db *database.Database, taskHandler *handlers.TaskHandler, alertHandler *handlers.AlertHandler) *gin.Engine {
 	rootRouter := gin.Default()
-
+	apiRouter := rootRouter.Group("/api")
 	// Setup global middleware
 	middleware.SetupGlobalMiddleware(rootRouter)
 
 	// Setup routes
-	routers.SetupHealthRouter(rootRouter, db)
-	routers.SetupTaskRouter(rootRouter, taskHandler)
+	routers.SetupHealthRouter(apiRouter, db)
+	routers.SetupTaskRouter(apiRouter, taskHandler)
+	routers.SetupAlertRouter(apiRouter, alertHandler)
 	routers.SetupSwaggerRouter(rootRouter)
 
 	// Setup metrics endpoint
@@ -58,12 +59,18 @@ func main() {
 		slog.Error(err.Error())
 		return
 	}
-
+	if err := database.Migrate(db.DB); err != nil {
+		slog.Error("Database Migrate failed ", "err", err)
+		return
+	} else {
+		slog.Info("Migrate Passed")
+	}
 	// Initialize handlers
 	taskHandler := handlers.NewTaskHandler(db)
+	alertHandler := handlers.NewAlertHandler()
 
 	// Set up rootRouter
-	rootRouter := setupAppServer(db, taskHandler)
+	rootRouter := setupAppServer(db, taskHandler, alertHandler)
 
 	slog.Info("Server starting on port ", "port", cfg.Server.Port)
 	if err := rootRouter.Run(":" + cfg.Server.Port); err != nil {
