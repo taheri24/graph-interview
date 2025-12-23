@@ -92,11 +92,11 @@
 
                 <!-- Main Content Area -->
                 <section class="lg:col-span-2">
-                    <!-- Create Task Form -->
+                    <!-- Create/Edit Task Form -->
                     <div x-show="showCreateForm" class="bg-white rounded-lg shadow p-6 mb-6">
-                        <h2 class="text-xl font-semibold text-slate-900 mb-4">Create New Task</h2>
+                        <h2 class="text-xl font-semibold text-slate-900 mb-4" x-text="isEditing ? 'Edit Task' : 'Create New Task'"></h2>
                         <form
-                            @submit.prevent="createTask()"
+                            @submit.prevent="isEditing ? updateTask() : createTask()"
                             class="space-y-4"
                         >
                             <div>
@@ -131,15 +131,13 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-1">Priority</label>
-                                    <select
-                                        x-model="newTask.priority"
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Assignee</label>
+                                    <input
+                                        x-model="newTask.assignee"
+                                        type="text"
+                                        placeholder="Enter assignee..."
                                         class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     >
-                                        <option value="low">Low</option>
-                                        <option value="medium">Medium</option>
-                                        <option value="high">High</option>
-                                    </select>
                                 </div>
                             </div>
                             <div class="flex gap-3">
@@ -148,7 +146,7 @@
                                     class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-medium"
                                     :disabled="isLoading"
                                 >
-                                    <span x-text="isLoading ? 'Creating...' : 'Create Task'"></span>
+                                    <span x-text="isLoading ? (isEditing ? 'Updating...' : 'Creating...') : (isEditing ? 'Update Task' : 'Create Task')"></span>
                                 </button>
                                 <button
                                     type="button"
@@ -242,9 +240,11 @@
                     title: '',
                     description: '',
                     status: 'pending',
-                    priority: 'medium'
+                    assignee: ''
                 },
                 showCreateForm: false,
+                isEditing: false,
+                editingTaskId: null,
                 activeFilter: 'all',
                 taskCount: 0,
                 apiStatus: 'Checking...',
@@ -269,7 +269,8 @@
                         if (!response.ok) throw new Error('Failed to load tasks');
 
                         const data = await response.json();
-                        this.tasks = data.data || [];
+                        console.log('loaded task api response>>>',data,data.tasks);
+                        this.tasks = data.tasks || [];
                         this.taskCount = this.tasks.length;
                     } catch (error) {
                         this.showToast('Failed to load tasks', 'error');
@@ -298,12 +299,47 @@
                             title: '',
                             description: '',
                             status: 'pending',
-                            priority: 'medium'
+                            assignee: ''
                         };
                         this.showCreateForm = false;
                         await this.loadTasks();
                     } catch (error) {
                         this.showToast('Error creating task', 'error');
+                        console.error(error);
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
+                async updateTask() {
+                    if (!this.newTask.title.trim()) {
+                        this.showToast('Title is required', 'error');
+                        return;
+                    }
+
+                    this.isLoading = true;
+                    try {
+                        const response = await fetch(`/api/tasks/${this.editingTaskId}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.newTask)
+                        });
+
+                        if (!response.ok) throw new Error('Failed to update task');
+
+                        this.showToast('Task updated successfully', 'success');
+                        this.isEditing = false;
+                        this.editingTaskId = null;
+                        this.newTask = {
+                            title: '',
+                            description: '',
+                            status: 'pending',
+                            assignee: ''
+                        };
+                        this.showCreateForm = false;
+                        await this.loadTasks();
+                    } catch (error) {
+                        this.showToast('Error updating task', 'error');
                         console.error(error);
                     } finally {
                         this.isLoading = false;
@@ -329,7 +365,14 @@
                 },
 
                 editTask(task) {
-                    this.newTask = { ...task };
+                    this.isEditing = true;
+                    this.editingTaskId = task.id;
+                    this.newTask = {
+                        title: task.title,
+                        description: task.description,
+                        status: task.status,
+                        assignee: task.assignee || ''
+                    };
                     this.showCreateForm = true;
                     window.scrollTo(0, 0);
                 },
@@ -346,11 +389,13 @@
                 toggleCreateForm() {
                     this.showCreateForm = !this.showCreateForm;
                     if (!this.showCreateForm) {
+                        this.isEditing = false;
+                        this.editingTaskId = null;
                         this.newTask = {
                             title: '',
                             description: '',
                             status: 'pending',
-                            priority: 'medium'
+                            assignee: ''
                         };
                     }
                 },
