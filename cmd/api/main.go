@@ -1,10 +1,11 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 
 	"taheri24.ir/graph1/internal/database"
 	"taheri24.ir/graph1/internal/handlers"
+	"taheri24.ir/graph1/internal/middleware"
 	"taheri24.ir/graph1/internal/routers"
 	"taheri24.ir/graph1/pkg/config"
 	"taheri24.ir/graph1/pkg/utils"
@@ -31,31 +32,41 @@ import (
 
 func setupAppServer(db *database.Database, taskHandler *handlers.TaskHandler) *gin.Engine {
 	rootRouter := gin.Default()
-	{
-		routers.SetupHealthRouter(rootRouter, db)
-		routers.SetupTaskRouter(rootRouter, taskHandler)
-		routers.SetupSwaggerRouter(rootRouter)
-	}
+
+	// Setup global middleware
+	middleware.SetupGlobalMiddleware(rootRouter)
+
+	// Setup routes
+	routers.SetupHealthRouter(rootRouter, db)
+	routers.SetupTaskRouter(rootRouter, taskHandler)
+	routers.SetupSwaggerRouter(rootRouter)
+
+	// Setup metrics endpoint
+	middleware.SetupMetricsEndpoint(rootRouter)
+
 	return rootRouter
 }
 
 func main() {
+
 	// Load configuration
 	cfg := config.Load()
 	// Initialize database
 	db := utils.Must(database.NewDatabase(cfg))
 	defer db.Close()
 	if err := db.Health(); err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		return
 	}
+
 	// Initialize handlers
 	taskHandler := handlers.NewTaskHandler(db)
 
 	// Set up rootRouter
 	rootRouter := setupAppServer(db, taskHandler)
 
-	log.Printf("Server starting on port %q", cfg.Server.Port)
+	slog.Info("Server starting on port ", "port", cfg.Server.Port)
 	if err := rootRouter.Run(":" + cfg.Server.Port); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+		slog.Error("Failed to start server: %v", "err", err)
 	}
 }

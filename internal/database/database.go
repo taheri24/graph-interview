@@ -2,7 +2,7 @@ package database
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 
 	"taheri24.ir/graph1/internal/models"
 	"taheri24.ir/graph1/pkg/config"
@@ -85,13 +85,18 @@ func NewDatabase(cfg *config.Config) (*Database, error) {
 	}
 
 	// Auto-migrate the schema
-	if err := db.AutoMigrate(&models.Task{}); err != nil {
-		return nil, fmt.Errorf("failed to migrate database: %w", err)
-	}
-
-	log.Println("Database connection established and migrations completed")
 
 	return &Database{DB: db}, nil
+}
+
+// Migrate handles auto-migration of database schema
+func Migrate(db *gorm.DB) error {
+	if err := db.AutoMigrate(&models.Task{}); err != nil {
+		return fmt.Errorf("failed to migrate database: %w", err)
+	}
+
+	slog.Info("Database connection established and migrations completed")
+	return nil
 }
 
 func (d *Database) Close() error {
