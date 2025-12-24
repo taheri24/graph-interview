@@ -1,4 +1,4 @@
-package handlers_test
+package task
 
 import (
 	"bytes"
@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"taheri24.ir/graph1/internal/cache"
 	"taheri24.ir/graph1/internal/database"
 	"taheri24.ir/graph1/internal/dto"
-	"taheri24.ir/graph1/internal/handlers"
 	"taheri24.ir/graph1/internal/models"
 	"taheri24.ir/graph1/internal/types"
 	"taheri24.ir/graph1/pkg/config"
@@ -57,7 +55,7 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 
 	// Setup router
 	suite.router = gin.New()
-	taskHandler := handlers.NewTaskHandler(suite.db, taskCache)
+	taskHandler := NewTaskHandler(suite.db, taskCache)
 
 	api := suite.router.Group("/tasks")
 	{
@@ -295,20 +293,4 @@ func (suite *IntegrationTestSuite) TestGetTasksWithFiltering() {
 	err = json.Unmarshal(w2.Body.Bytes(), &resp2)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), 2, len(resp2.Tasks))
-}
-
-// Helper functions
-func stringPtr(s string) *string {
-	return &s
-}
-
-func statusPtr(s types.TaskStatus) *types.TaskStatus {
-	return &s
-}
-
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }

@@ -1,4 +1,4 @@
-package handlers
+package task
 
 import (
 	"testing"
@@ -207,13 +207,4 @@ func TestValidateUpdateTaskRequest(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
-}
-
-// Helper functions for creating pointers
-func stringPtr(s string) *string {
-	return &s
-}
-
-func statusPtr(s types.TaskStatus) *types.TaskStatus {
-	return &s
 }

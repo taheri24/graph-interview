@@ -1,4 +1,4 @@
-package handlers
+package task
 
 import (
 	"taheri24.ir/graph1/internal/dto"

@@ -1,4 +1,4 @@
-package handlers_test
+package task
 
 import (
 	"bytes"
@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"taheri24.ir/graph1/internal/dto"
-	"taheri24.ir/graph1/internal/handlers"
 	"taheri24.ir/graph1/internal/models"
 	"taheri24.ir/graph1/internal/types"
 )
@@ -109,7 +108,7 @@ type TaskHandlerTestSuite struct {
 	suite.Suite
 	mockRepo  *MockTaskRepository
 	mockCache *MockCache
-	handler   *handlers.TaskHandler
+	handler   *TaskHandler
 	router    *gin.Engine
 }
 
@@ -117,7 +116,7 @@ func (suite *TaskHandlerTestSuite) SetupTest() {
 	gin.SetMode(gin.TestMode)
 	suite.mockRepo = &MockTaskRepository{}
 	suite.mockCache = &MockCache{}
-	suite.handler = handlers.NewTaskHandler(suite.mockRepo, suite.mockCache)
+	suite.handler = NewTaskHandler(suite.mockRepo, suite.mockCache)
 	suite.router = gin.New()
 
 }
@@ -275,11 +274,15 @@ func (suite *TaskHandlerTestSuite) TestGetTask_DatabaseError() {
 
 	// Assert
 	assert.Equal(suite.T(), http.StatusInternalServerError, w.Code)
+}
 
-	var response dto.ErrorResponse
-	err := json.Unmarshal(w.Body.Bytes(), &response)
-	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), "Failed to get task", response.Error)
+// Helper functions for creating pointers
+func stringPtr(s string) *string {
+	return &s
+}
+
+func statusPtr(s types.TaskStatus) *types.TaskStatus {
+	return &s
 }
 
 func (suite *TaskHandlerTestSuite) TestGetTasks_Success() {

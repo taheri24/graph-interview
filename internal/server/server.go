@@ -7,7 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"taheri24.ir/graph1/internal/cache"
 	"taheri24.ir/graph1/internal/database"
-	"taheri24.ir/graph1/internal/handlers"
+	"taheri24.ir/graph1/internal/handlers/alert"
+	"taheri24.ir/graph1/internal/handlers/task"
 	"taheri24.ir/graph1/internal/middleware"
 	"taheri24.ir/graph1/internal/models"
 	"taheri24.ir/graph1/internal/routers"
@@ -49,8 +50,8 @@ func SetupAppServer(db *database.Database, cfg *config.Config) *gin.Engine {
 	}
 
 	// Initialize handlers
-	taskHandler := handlers.NewTaskHandler(db, taskCache)
-	alertHandler := handlers.NewAlertHandler()
+	taskHandler := task.NewTaskHandler(db, taskCache)
+	alertHandler := alert.NewAlertHandler()
 
 	rootRouter := gin.Default()
 	apiRouter := rootRouter.Group("/api/v1")
