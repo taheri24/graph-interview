@@ -28,6 +28,20 @@ A comprehensive RESTful API for managing tasks built with Go, Gin, and PostgreSQ
 - **Testing**: Go testing framework
 - **Containerization**: Docker & Docker Compose
 
+## API Documentation Screenshot
+
+This screenshot displays the interactive Swagger UI documentation interface for the Task Management API, showcasing all available endpoints and their specifications.
+
+![Swagger UI Documentation](docs/swagger-screenshot.png)
+
+## Frontend Interface Screenshot
+
+This screenshot shows the frontend interface of the Task Management application, providing a user-friendly web interface to interact with the API endpoints.
+
+![Frontend Interface](docs/frontend-screenshot.png)
+
+
+
 ## Architecture
 
 ```mermaid
