@@ -141,8 +141,7 @@ func (h *CachedTaskHandler) GetTask(c *gin.Context) {
 	}
 
 	// Cache miss - fetch from database
-	var zeroTask models.Task
-	if task == zeroTask {
+	if task.ID == uuid.Nil {
 		taskPtr, err := h.repo.GetByID(id)
 		if err != nil {
 			c.JSON(http.StatusNotFound, NewErrorResponse("Task not found"))

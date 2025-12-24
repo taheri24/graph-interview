@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -25,6 +26,46 @@ type MockTaskRepository struct {
 	GetAllFunc  func(page, limit int, status, assignee string) ([]models.Task, int64, error)
 	UpdateFunc  func(task *models.Task) error
 	DeleteFunc  func(id uuid.UUID) error
+}
+
+// MockCache implements CacheInterface for testing
+type MockCache struct {
+	GetFunc        func(id string) (models.Task, error)
+	SetFunc        func(id string, item models.Task) error
+	InvalidateFunc func(id string) error
+}
+
+func (m *MockCache) Get(id string) (models.Task, error) {
+	if m.GetFunc != nil {
+		return m.GetFunc(id)
+	}
+	return models.Task{}, fmt.Errorf("cache miss")
+}
+
+func (m *MockCache) Set(id string, item models.Task) error {
+	if m.SetFunc != nil {
+		return m.SetFunc(id, item)
+	}
+	return nil
+}
+
+func (m *MockCache) Invalidate(id string) error {
+	if m.InvalidateFunc != nil {
+		return m.InvalidateFunc(id)
+	}
+	return nil
+}
+
+func (m *MockCache) GetAll() ([]models.Task, error) {
+	return nil, nil
+}
+
+func (m *MockCache) SetAll(items []models.Task) error {
+	return nil
+}
+
+func (m *MockCache) InvalidateAll() error {
+	return nil
 }
 
 func (m *MockTaskRepository) Create(task *models.Task) error {
@@ -64,15 +105,17 @@ func (m *MockTaskRepository) Delete(id uuid.UUID) error {
 
 type TaskHandlerTestSuite struct {
 	suite.Suite
-	mockRepo *MockTaskRepository
-	handler  *handlers.TaskHandler
-	router   *gin.Engine
+	mockRepo  *MockTaskRepository
+	mockCache *MockCache
+	handler   *handlers.TaskHandler
+	router    *gin.Engine
 }
 
 func (suite *TaskHandlerTestSuite) SetupTest() {
 	gin.SetMode(gin.TestMode)
 	suite.mockRepo = &MockTaskRepository{}
-	suite.handler = handlers.NewTaskHandler(suite.mockRepo)
+	suite.mockCache = &MockCache{}
+	suite.handler = handlers.NewTaskHandler(suite.mockRepo, suite.mockCache)
 	suite.router = gin.New()
 
 }

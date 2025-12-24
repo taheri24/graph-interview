@@ -1,9 +1,13 @@
 package models_test
 
 import (
+	"encoding/json"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
+	"taheri24.ir/graph1/internal/cache"
 	"taheri24.ir/graph1/internal/models"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -139,4 +143,284 @@ func TestTaskBeforeCreateHook(t *testing.T) {
 
 	// Clean up
 	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestTaskCacheOperations(t *testing.T) {
+	// Create an in-memory cache for Task objects
+	cache := cache.NewInMemoryCacheImpl[models.Task]()
+
+	// Create test tasks
+	task1 := models.Task{
+		ID:          uuid.New(),
+		Title:       "Task 1",
+		Description: "Description 1",
+		Status:      models.StatusPending,
+		Assignee:    "user1@example.com",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	task2 := models.Task{
+		ID:          uuid.New(),
+		Title:       "Task 2",
+		Description: "Description 2",
+		Status:      models.StatusInProgress,
+		Assignee:    "user2@example.com",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	// Test Set and Get operations
+	err := cache.Set(task1.ID.String(), task1)
+	assert.NoError(t, err)
+
+	err = cache.Set(task2.ID.String(), task2)
+	assert.NoError(t, err)
+
+	// Test Get existing task
+	retrievedTask1, err := cache.Get(task1.ID.String())
+	assert.NoError(t, err)
+	assert.Equal(t, task1.ID, retrievedTask1.ID)
+	assert.Equal(t, task1.Title, retrievedTask1.Title)
+	assert.Equal(t, task1.Description, retrievedTask1.Description)
+	assert.Equal(t, task1.Status, retrievedTask1.Status)
+	assert.Equal(t, task1.Assignee, retrievedTask1.Assignee)
+
+	// Test Get non-existing task
+	_, err = cache.Get(uuid.New().String())
+	assert.Error(t, err)
+
+	// Test Invalidate
+	err = cache.Invalidate(task1.ID.String())
+	assert.NoError(t, err)
+
+	// After invalidate, should get error
+	_, err = cache.Get(task1.ID.String())
+	assert.Error(t, err)
+
+	// task2 should still be available
+	retrievedTask2, err := cache.Get(task2.ID.String())
+	assert.NoError(t, err)
+	assert.Equal(t, task2.ID, retrievedTask2.ID)
+}
+
+func TestTaskCacheSetAllAndGetAll(t *testing.T) {
+	cache := cache.NewInMemoryCacheImpl[models.Task]()
+
+	// Create multiple tasks
+	tasks := []models.Task{
+		{
+			ID:          uuid.New(),
+			Title:       "Task 1",
+			Description: "Description 1",
+			Status:      models.StatusPending,
+			Assignee:    "user1@example.com",
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+		},
+		{
+			ID:          uuid.New(),
+			Title:       "Task 2",
+			Description: "Description 2",
+			Status:      models.StatusInProgress,
+			Assignee:    "user2@example.com",
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+		},
+		{
+			ID:          uuid.New(),
+			Title:       "Task 3",
+			Description: "Description 3",
+			Status:      models.StatusCompleted,
+			Assignee:    "user3@example.com",
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+		},
+	}
+
+	// Test SetAll
+	err := cache.SetAll(tasks)
+	assert.NoError(t, err)
+
+	// Test GetAll
+	retrievedTasks, err := cache.GetAll()
+	assert.NoError(t, err)
+	assert.Len(t, retrievedTasks, 3)
+
+	// Verify all tasks are present (order may vary due to map iteration)
+	foundTasks := make(map[string]bool)
+	for _, task := range retrievedTasks {
+		foundTasks[task.Title] = true
+	}
+	assert.True(t, foundTasks["Task 1"])
+	assert.True(t, foundTasks["Task 2"])
+	assert.True(t, foundTasks["Task 3"])
+}
+
+func TestTaskCacheInvalidateAll(t *testing.T) {
+	cache := cache.NewInMemoryCacheImpl[models.Task]()
+
+	// Add some tasks
+	task1 := models.Task{ID: uuid.New(), Title: "Task 1", Status: models.StatusPending, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	task2 := models.Task{ID: uuid.New(), Title: "Task 2", Status: models.StatusInProgress, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+
+	cache.Set(task1.ID.String(), task1)
+	cache.Set(task2.ID.String(), task2)
+
+	// Verify tasks are cached
+	retrievedTasks, err := cache.GetAll()
+	assert.NoError(t, err)
+	assert.Len(t, retrievedTasks, 2)
+
+	// Invalidate all
+	err = cache.InvalidateAll()
+	assert.NoError(t, err)
+
+	// Verify cache is empty
+	retrievedTasks, err = cache.GetAll()
+	assert.NoError(t, err)
+	assert.Len(t, retrievedTasks, 0)
+
+	// Individual gets should fail
+	_, err = cache.Get(task1.ID.String())
+	assert.Error(t, err)
+	_, err = cache.Get(task2.ID.String())
+	assert.Error(t, err)
+}
+
+func TestTaskCacheConcurrentAccess(t *testing.T) {
+	cache := cache.NewInMemoryCacheImpl[models.Task]()
+	var wg sync.WaitGroup
+
+	// Number of goroutines
+	numGoroutines := 10
+	numOperations := 100
+
+	// Test concurrent Set operations
+	wg.Add(numGoroutines)
+	for i := 0; i < numGoroutines; i++ {
+		go func(id int) {
+			defer wg.Done()
+			for j := 0; j < numOperations; j++ {
+				taskID := uuid.New()
+				task := models.Task{
+					ID:        taskID,
+					Title:     fmt.Sprintf("Task-%d-%d", id, j),
+					Status:    models.StatusPending,
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				}
+				cache.Set(taskID.String(), task)
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	// Verify all tasks were added (should have numGoroutines * numOperations tasks)
+	allTasks, err := cache.GetAll()
+	assert.NoError(t, err)
+	assert.Len(t, allTasks, numGoroutines*numOperations)
+
+	// Test concurrent Get operations
+	wg.Add(numGoroutines)
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer wg.Done()
+			for j := 0; j < numOperations; j++ {
+				// Try to get a random task (some may not exist)
+				randomID := uuid.New().String()
+				cache.Get(randomID) // Ignore errors, just test concurrency
+			}
+		}()
+	}
+	wg.Wait()
+
+	// Cache should still contain all original tasks
+	allTasks, err = cache.GetAll()
+	assert.NoError(t, err)
+	assert.Len(t, allTasks, numGoroutines*numOperations)
+}
+
+func TestTaskSerialization(t *testing.T) {
+	// Test JSON serialization of Task (important for cache storage)
+	task := models.Task{
+		ID:          uuid.New(),
+		Title:       "Test Task",
+		Description: "Test Description",
+		Status:      models.StatusInProgress,
+		Assignee:    "test@example.com",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	// Test JSON marshaling
+	data, err := json.Marshal(task)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, data)
+
+	// Test JSON unmarshaling
+	var unmarshaledTask models.Task
+	err = json.Unmarshal(data, &unmarshaledTask)
+	assert.NoError(t, err)
+
+	// Verify fields
+	assert.Equal(t, task.ID, unmarshaledTask.ID)
+	assert.Equal(t, task.Title, unmarshaledTask.Title)
+	assert.Equal(t, task.Description, unmarshaledTask.Description)
+	assert.Equal(t, task.Status, unmarshaledTask.Status)
+	assert.Equal(t, task.Assignee, unmarshaledTask.Assignee)
+	// Note: Time fields may have slight precision differences, so we check they're close
+	assert.True(t, task.CreatedAt.Sub(unmarshaledTask.CreatedAt) < time.Second)
+	assert.True(t, task.UpdatedAt.Sub(unmarshaledTask.UpdatedAt) < time.Second)
+}
+
+func TestTaskCacheWithEmptyFields(t *testing.T) {
+	cache := cache.NewInMemoryCacheImpl[models.Task]()
+
+	// Test task with minimal fields
+	task := models.Task{
+		ID:        uuid.New(),
+		Title:     "Minimal Task",
+		Status:    models.StatusPending,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		// Description and Assignee are empty strings
+	}
+
+	// Set in cache
+	err := cache.Set(task.ID.String(), task)
+	assert.NoError(t, err)
+
+	// Get from cache
+	retrievedTask, err := cache.Get(task.ID.String())
+	assert.NoError(t, err)
+
+	// Verify empty fields are handled correctly
+	assert.Equal(t, "", retrievedTask.Description)
+	assert.Equal(t, "", retrievedTask.Assignee)
+	assert.Equal(t, models.StatusPending, retrievedTask.Status)
+}
+
+func TestTaskCacheTypeAssertion(t *testing.T) {
+	cache := cache.NewInMemoryCacheImpl[models.Task]()
+
+	// Test that type assertion works correctly in GetAll
+	task1 := models.Task{ID: uuid.New(), Title: "Task 1", Status: models.StatusPending, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	task2 := models.Task{ID: uuid.New(), Title: "Task 2", Status: models.StatusCompleted, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+
+	// Set individual tasks
+	cache.Set(task1.ID.String(), task1)
+	cache.Set(task2.ID.String(), task2)
+
+	// GetAll should correctly type-assert Task objects
+	allTasks, err := cache.GetAll()
+	assert.NoError(t, err)
+	assert.Len(t, allTasks, 2)
+
+	// Verify we can access Task-specific fields
+	for _, task := range allTasks {
+		assert.IsType(t, models.Task{}, task)
+		assert.NotEmpty(t, task.Title)
+		assert.IsType(t, models.TaskStatus(""), task.Status)
+	}
 }

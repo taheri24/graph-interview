@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"taheri24.ir/graph1/internal/cache"
 	"taheri24.ir/graph1/internal/database"
 	"taheri24.ir/graph1/internal/models"
 	"taheri24.ir/graph1/pkg/utils"
@@ -13,11 +14,12 @@ import (
 )
 
 type TaskHandler struct {
-	repo database.TaskRepository
+	repo  database.TaskRepository
+	cache cache.CacheInterface[models.Task]
 }
 
-func NewTaskHandler(repo database.TaskRepository) *TaskHandler {
-	return &TaskHandler{repo: repo}
+func NewTaskHandler(repo database.TaskRepository, cache cache.CacheInterface[models.Task]) *TaskHandler {
+	return &TaskHandler{repo: repo, cache: cache}
 }
 
 // CreateTaskRequest represents the request body for creating a task
@@ -186,7 +188,25 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 		return
 	}
 
-	task, err := h.repo.GetByID(id)
+	// Try to get from cache first
+	task, err := h.cache.Get(id.String())
+	if err == nil {
+		// Cache hit
+		response := TaskResponse{
+			ID:          task.ID,
+			Title:       task.Title,
+			Description: task.Description,
+			Status:      task.Status,
+			Assignee:    task.Assignee,
+			CreatedAt:   task.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			UpdatedAt:   task.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		}
+		c.JSON(http.StatusOK, response)
+		return
+	}
+
+	// Cache miss, get from repository
+	taskPtr, err := h.repo.GetByID(id)
 	if err != nil {
 		if utils.ErrIsRecordNotFound(err) {
 			c.JSON(http.StatusNotFound, NewErrorResponse("Task not found"))
@@ -194,6 +214,14 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to get task"))
 		}
 		return
+	}
+
+	task = *taskPtr
+
+	// Set in cache
+	if err := h.cache.Set(id.String(), task); err != nil {
+		// Log error but don't fail the request
+		// TODO: add proper logging
 	}
 
 	response := TaskResponse{
@@ -265,6 +293,12 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		return
 	}
 
+	// Invalidate cache
+	if err := h.cache.Invalidate(id.String()); err != nil {
+		// Log error but don't fail the request
+		// TODO: add proper logging
+	}
+
 	response := TaskResponse{
 		ID:          task.ID,
 		Title:       task.Title,
@@ -305,6 +339,12 @@ func (h *TaskHandler) DeleteTask(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to delete task"))
 		}
 		return
+	}
+
+	// Invalidate cache
+	if err := h.cache.Invalidate(id.String()); err != nil {
+		// Log error but don't fail the request
+		// TODO: add proper logging
 	}
 
 	c.JSON(http.StatusNoContent, nil)

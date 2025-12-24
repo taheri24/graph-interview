@@ -1,6 +1,23 @@
 version: '3.8'
 
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: task-api-redis
+    command: redis-server --appendonly yes --requirepass password
+    environment:
+      REDIS_PASSWORD: password
+    volumes:
+      - redis_data:/data
+    networks:
+      - task-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   postgres:
     image: postgres:15-alpine
     container_name: task-api-postgres
@@ -34,11 +51,18 @@ services:
       DB_PASSWORD: password
       DB_NAME: taskdb
       DB_SSLMODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: password
+      REDIS_DB: 0
+      CACHE_ENABLED: "true"
       SERVER_PORT: 8080
     ports:
       - "8080:8080"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - task-network
@@ -78,6 +102,11 @@ services:
       DB_PASSWORD: password
       DB_NAME: taskdb
       DB_SSLMODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: password
+      REDIS_DB: 0
+      CACHE_ENABLED: "true"
       SERVER_PORT: 8080
     depends_on:
       postgres:
@@ -113,6 +142,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local
   prometheus_data:
     driver: local

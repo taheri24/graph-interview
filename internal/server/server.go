@@ -1,11 +1,17 @@
 package server
 
 import (
+	"fmt"
+	"log/slog"
+
 	"github.com/gin-gonic/gin"
+	"taheri24.ir/graph1/internal/cache"
 	"taheri24.ir/graph1/internal/database"
 	"taheri24.ir/graph1/internal/handlers"
 	"taheri24.ir/graph1/internal/middleware"
+	"taheri24.ir/graph1/internal/models"
 	"taheri24.ir/graph1/internal/routers"
+	"taheri24.ir/graph1/pkg/config"
 )
 
 // @title Task Management API
@@ -25,7 +31,28 @@ import (
 // @externalDocs.description OpenAPI
 // @externalDocs.url https://swagger.io/resources/open-api/
 
-func SetupAppServer(db *database.Database, taskHandler *handlers.TaskHandler, alertHandler *handlers.AlertHandler) *gin.Engine {
+func SetupAppServer(db *database.Database, cfg *config.Config) *gin.Engine {
+	// Initialize cache
+	var taskCache cache.CacheInterface[models.Task]
+	if cfg.CacheEnabled {
+		redisAddr := fmt.Sprintf("%s:%s", cfg.Redis.Host, cfg.Redis.Port)
+		redisCache, err := cache.NewRedisCache(redisAddr, cfg.Redis.Password, cfg.Redis.DB)
+		if err != nil {
+			slog.Error("Failed to initialize Redis cache", "err", err)
+			return nil
+		}
+		defer redisCache.Close()
+		taskCache = cache.NewRedisCacheImpl[models.Task]("tasks", redisCache)
+		slog.Info("Cache enabled")
+	} else {
+		taskCache = cache.NewNoOpCacheImpl[models.Task]()
+		slog.Info("Cache disabled")
+	}
+
+	// Initialize handlers
+	taskHandler := handlers.NewTaskHandler(db, taskCache)
+	alertHandler := handlers.NewAlertHandler()
+
 	rootRouter := gin.Default()
 	apiRouter := rootRouter.Group("/api/v1")
 	// Setup global middleware

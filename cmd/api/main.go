@@ -6,7 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "taheri24.ir/graph1/docs"
 	"taheri24.ir/graph1/internal/database"
-	"taheri24.ir/graph1/internal/handlers"
 	"taheri24.ir/graph1/internal/server"
 	"taheri24.ir/graph1/pkg/config"
 	"taheri24.ir/graph1/pkg/utils"
@@ -27,12 +26,13 @@ func main() {
 	} else {
 		slog.Info("Migrate Passed")
 	}
-	// Initialize handlers
-	taskHandler := handlers.NewTaskHandler(db)
-	alertHandler := handlers.NewAlertHandler()
 
 	// Set up rootRouter
-	rootRouter := server.SetupAppServer(db, taskHandler, alertHandler)
+	rootRouter := server.SetupAppServer(db, cfg)
+	if rootRouter == nil {
+		slog.Error("Failed to setup server")
+		return
+	}
 
 	slog.Info("Server starting on port ", "port", cfg.Server.Port)
 	if err := rootRouter.Run(":" + cfg.Server.Port); err != nil {

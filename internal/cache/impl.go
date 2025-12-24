@@ -13,6 +13,14 @@ type RedisCacheImpl[T any] struct {
 
 var _ CacheInterface[any] = (*RedisCacheImpl[any])(nil)
 
+// NewRedisCacheImpl creates a new RedisCacheImpl instance
+func NewRedisCacheImpl[T any](sectionName string, redisCache *RedisCache) *RedisCacheImpl[T] {
+	return &RedisCacheImpl[T]{
+		sectionName: sectionName,
+		redisCache:  redisCache,
+	}
+}
+
 // GetAll implements CacheInterface.GetAll
 func (r *RedisCacheImpl[T]) GetAll() ([]T, error) {
 	return Get[[]T](r.redisCache, "%s", r.sectionName)

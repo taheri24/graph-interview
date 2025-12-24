@@ -9,7 +9,7 @@ A comprehensive RESTful API for managing tasks built with Go, Gin, and PostgreSQ
 - Pagination and filtering support
 - UUID-based task identification
 - PostgreSQL with GORM ORM
-- Redis caching for improved performance
+- Configurable Redis caching for improved performance
 - Prometheus metrics and monitoring
 - Request tracing with unique IDs
 - Containerized with Docker Compose
@@ -22,7 +22,7 @@ A comprehensive RESTful API for managing tasks built with Go, Gin, and PostgreSQ
 - **Framework**: Gin
 - **Database**: PostgreSQL
 - **ORM**: GORM
-- **Cache**: Redis
+- **Cache**: Redis (configurable, with in-memory fallback)
 - **Monitoring**: Prometheus
 - **Documentation**: Swagger/OpenAPI
 - **Testing**: Go testing framework
@@ -138,10 +138,11 @@ go run cmd/api/main.go
 | `DB_USER` | postgres | PostgreSQL username |
 | `DB_PASSWORD` | - | PostgreSQL password |
 | `DB_NAME` | taskdb | Database name |
-| `REDIS_HOST` | localhost | Redis host |
+| `REDIS_HOST` | localhost | Redis host for caching |
 | `REDIS_PORT` | 6379 | Redis port |
 | `REDIS_PASSWORD` | - | Redis password |
 | `REDIS_DB` | 0 | Redis database number |
+| `CACHE_ENABLED` | true | Enable/disable Redis caching |
 | `SERVER_PORT` | 8080 | API server port |
 
 ## API Endpoints
@@ -209,11 +210,17 @@ Every request includes a unique `X-Request-ID` header for tracing and debugging.
 
 ## Caching
 
-The application uses Redis for caching:
+The application uses Redis for high-performance caching. Set `CACHE_ENABLED=true` to enable Redis caching (default: enabled).
 
-- **GET /tasks** - Cached for 5 minutes with cache-aside pattern
-- **GET /tasks/{id}** - Cached for 5 minutes
+**Redis Configuration:**
+- Host and port configurable via `REDIS_HOST` and `REDIS_PORT`
+- Password protection via `REDIS_PASSWORD`
+- Database selection via `REDIS_DB`
+
+**Caching Behavior:**
+- **GET /tasks/{id}** - Cached for improved read performance
 - **Cache Invalidation** - Automatic invalidation on create/update/delete operations
+- **Fallback** - Graceful fallback to database when cache is unavailable or disabled
 
 ## Testing
 

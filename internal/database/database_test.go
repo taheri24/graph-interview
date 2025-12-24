@@ -28,6 +28,242 @@ func (a AnyTime) Match(v driver.Value) bool {
 	return ok
 }
 
+// Integration Tests - Test actual database operations
+
+func TestCreateTaskIntegration(t *testing.T) {
+	cfg := config.NewTestConfig()
+	db, err := database.NewDatabase(cfg)
+	require.NoError(t, err)
+	defer db.Close()
+
+	err = database.Migrate(db.DB)
+	require.NoError(t, err)
+
+	task := &models.Task{
+		Title:       "Integration Test Task",
+		Description: "Testing create operation",
+		Status:      models.StatusPending,
+		Assignee:    "test@example.com",
+	}
+
+	err = db.Create(task)
+	assert.NoError(t, err)
+	assert.NotEqual(t, uuid.Nil, task.ID)
+
+	// Verify task was created
+	var found models.Task
+	err = db.DB.First(&found, "id = ?", task.ID).Error
+	assert.NoError(t, err)
+	assert.Equal(t, task.Title, found.Title)
+	assert.Equal(t, task.Description, found.Description)
+	assert.Equal(t, task.Status, found.Status)
+	assert.Equal(t, task.Assignee, found.Assignee)
+	assert.False(t, found.CreatedAt.IsZero())
+	assert.False(t, found.UpdatedAt.IsZero())
+}
+
+func TestUpdateTaskIntegration(t *testing.T) {
+	cfg := config.NewTestConfig()
+	db, err := database.NewDatabase(cfg)
+	require.NoError(t, err)
+	defer db.Close()
+
+	err = database.Migrate(db.DB)
+	require.NoError(t, err)
+
+	// Create a task first
+	originalTask := &models.Task{
+		Title:       "Original Title",
+		Description: "Original Description",
+		Status:      models.StatusPending,
+		Assignee:    "original@test.com",
+	}
+	err = db.Create(originalTask)
+	require.NoError(t, err)
+
+	originalUpdatedAt := originalTask.UpdatedAt
+
+	// Wait a bit to ensure timestamp difference
+	time.Sleep(1 * time.Millisecond)
+
+	// Update the task
+	originalTask.Title = "Updated Title"
+	originalTask.Status = models.StatusCompleted
+	originalTask.Assignee = "updated@test.com"
+
+	err = db.Update(originalTask)
+	assert.NoError(t, err)
+
+	// Verify the update
+	var found models.Task
+	err = db.DB.First(&found, "id = ?", originalTask.ID).Error
+	assert.NoError(t, err)
+	assert.Equal(t, "Updated Title", found.Title)
+	assert.Equal(t, models.StatusCompleted, found.Status)
+	assert.Equal(t, "updated@test.com", found.Assignee)
+	assert.Equal(t, "Original Description", found.Description) // Should remain unchanged
+	assert.True(t, found.UpdatedAt.After(originalUpdatedAt))
+}
+
+func TestDeleteTaskIntegration(t *testing.T) {
+	cfg := config.NewTestConfig()
+	db, err := database.NewDatabase(cfg)
+	require.NoError(t, err)
+	defer db.Close()
+
+	err = database.Migrate(db.DB)
+	require.NoError(t, err)
+
+	// Create a task first
+	task := &models.Task{
+		Title:       "Task to Delete",
+		Description: "Will be deleted",
+		Status:      models.StatusPending,
+		Assignee:    "delete@test.com",
+	}
+	err = db.Create(task)
+	require.NoError(t, err)
+
+	// Verify it exists
+	var count int64
+	db.DB.Model(&models.Task{}).Count(&count)
+	assert.Equal(t, int64(1), count)
+
+	// Delete the task
+	err = db.Delete(task.ID)
+	assert.NoError(t, err)
+
+	// Verify it was deleted
+	db.DB.Model(&models.Task{}).Count(&count)
+	assert.Equal(t, int64(0), count)
+
+	// Try to delete non-existent task (should not error due to GORM behavior)
+	nonExistentID := uuid.New()
+	err = db.Delete(nonExistentID)
+	assert.NoError(t, err) // GORM doesn't return error for deleting non-existent records
+}
+
+func TestGetAllTasksIntegration(t *testing.T) {
+	cfg := config.NewTestConfig()
+	db, err := database.NewDatabase(cfg)
+	require.NoError(t, err)
+	defer db.Close()
+
+	err = database.Migrate(db.DB)
+	require.NoError(t, err)
+
+	// Clear any existing data
+	db.DB.Exec("DELETE FROM tasks")
+
+	// Create multiple tasks
+	tasks := []models.Task{
+		{
+			Title:       "Task 1",
+			Description: "First task",
+			Status:      models.StatusPending,
+			Assignee:    "user1@test.com",
+		},
+		{
+			Title:       "Task 2",
+			Description: "Second task",
+			Status:      models.StatusInProgress,
+			Assignee:    "user2@test.com",
+		},
+		{
+			Title:       "Task 3",
+			Description: "Third task",
+			Status:      models.StatusCompleted,
+			Assignee:    "user1@test.com",
+		},
+		{
+			Title:       "Task 4",
+			Description: "Fourth task",
+			Status:      models.StatusPending,
+			Assignee:    "user3@test.com",
+		},
+	}
+
+	for i := range tasks {
+		err = db.Create(&tasks[i])
+		require.NoError(t, err)
+	}
+
+	// Test GetAll without filters
+	foundTasks, total, err := db.GetAll(1, 10, "", "")
+	assert.NoError(t, err)
+	assert.Equal(t, int64(4), total)
+	assert.Len(t, foundTasks, 4)
+
+	// Test pagination
+	foundTasks, total, err = db.GetAll(1, 2, "", "")
+	assert.NoError(t, err)
+	assert.Equal(t, int64(4), total)
+	assert.Len(t, foundTasks, 2)
+
+	foundTasks, total, err = db.GetAll(2, 2, "", "")
+	assert.NoError(t, err)
+	assert.Equal(t, int64(4), total)
+	assert.Len(t, foundTasks, 2)
+
+	// Test filtering by status
+	foundTasks, total, err = db.GetAll(1, 10, "pending", "")
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), total)
+	assert.Len(t, foundTasks, 2)
+	for _, task := range foundTasks {
+		assert.Equal(t, models.StatusPending, task.Status)
+	}
+
+	// Test filtering by assignee
+	foundTasks, total, err = db.GetAll(1, 10, "", "user1@test.com")
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), total)
+	assert.Len(t, foundTasks, 2)
+	for _, task := range foundTasks {
+		assert.Equal(t, "user1@test.com", task.Assignee)
+	}
+
+	// Test combined filtering
+	foundTasks, total, err = db.GetAll(1, 10, "completed", "user1@test.com")
+	assert.NoError(t, err)
+	assert.Equal(t, int64(1), total)
+	assert.Len(t, foundTasks, 1)
+	assert.Equal(t, "Task 3", foundTasks[0].Title)
+}
+
+func TestHealthCheckIntegration(t *testing.T) {
+	cfg := config.NewTestConfig()
+	db, err := database.NewDatabase(cfg)
+	require.NoError(t, err)
+	defer db.Close()
+
+	// Test health check with working database
+	err = db.Health()
+	assert.NoError(t, err)
+
+	// Close database and test health check failure
+	err = db.Close()
+	assert.NoError(t, err)
+
+	err = db.Health()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "database ping failed")
+}
+
+func TestDatabaseCloseIntegration(t *testing.T) {
+	cfg := config.NewTestConfig()
+	db, err := database.NewDatabase(cfg)
+	require.NoError(t, err)
+
+	// Test successful close
+	err = db.Close()
+	assert.NoError(t, err)
+
+	// Test closing already closed database
+	err = db.Close()
+	assert.NoError(t, err) // Should not error on double close
+}
+
 type DatabaseTestSuite struct {
 	suite.Suite
 	db *database.Database

@@ -11,6 +11,7 @@ func NewTestConfig() *Config {
 			Port: "6379",
 			DB:   0,
 		},
+		CacheEnabled: true,
 		Server: struct {
 			Port string
 		}{

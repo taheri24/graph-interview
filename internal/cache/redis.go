@@ -59,6 +59,9 @@ func Get[T any](r *RedisCache, format string, args ...any) (T, error) {
 	var blank T
 	raw, err := cmd.Bytes()
 	if err != nil {
+		if err == redis.Nil {
+			return blank, fmt.Errorf("item not found in cache")
+		}
 		return blank, err
 	}
 	return utils.JsonDecode[T](raw), nil

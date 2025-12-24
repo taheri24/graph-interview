@@ -3,11 +3,13 @@ package handlers_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 
+	"taheri24.ir/graph1/internal/cache"
 	"taheri24.ir/graph1/internal/database"
 	"taheri24.ir/graph1/internal/handlers"
 	"taheri24.ir/graph1/internal/models"
@@ -42,9 +44,18 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 	// Clean up any existing data
 	suite.db.DB.Exec("DELETE FROM tasks")
 
+	// Setup cache
+	redisAddr := fmt.Sprintf("%s:%s", testConfig.Redis.Host, testConfig.Redis.Port)
+	redisCache, err := cache.NewRedisCache(redisAddr, testConfig.Redis.Password, testConfig.Redis.DB)
+	if err != nil {
+		suite.T().Skipf("Skipping integration tests: Redis not available: %v", err)
+		return
+	}
+	taskCache := cache.NewRedisCacheImpl[models.Task]("tasks", redisCache)
+
 	// Setup router
 	suite.router = gin.New()
-	taskHandler := handlers.NewTaskHandler(suite.db)
+	taskHandler := handlers.NewTaskHandler(suite.db, taskCache)
 
 	api := suite.router.Group("/tasks")
 	{
