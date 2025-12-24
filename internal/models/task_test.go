@@ -187,105 +187,23 @@ func TestTaskCacheOperations(t *testing.T) {
 	assert.Equal(t, task1.Assignee, retrievedTask1.Assignee)
 
 	// Test Get non-existing task
-	_, err = cache.Get(uuid.New().String())
-	assert.Error(t, err)
+	item, err := cache.Get(uuid.New().String())
+	assert.NoError(t, err)
+	assert.Nil(t, item)
 
 	// Test Invalidate
 	err = cache.Invalidate(task1.ID.String())
 	assert.NoError(t, err)
 
 	// After invalidate, should get error
-	_, err = cache.Get(task1.ID.String())
-	assert.Error(t, err)
+	item, err = cache.Get(task1.ID.String())
+	assert.NoError(t, err)
+	assert.Nil(t, item)
 
 	// task2 should still be available
 	retrievedTask2, err := cache.Get(task2.ID.String())
 	assert.NoError(t, err)
 	assert.Equal(t, task2.ID, retrievedTask2.ID)
-}
-
-func TestTaskCacheSetAllAndGetAll(t *testing.T) {
-	cache := cache.NewInMemoryCacheImpl[models.Task]()
-
-	// Create multiple tasks
-	tasks := []models.Task{
-		{
-			ID:          uuid.New(),
-			Title:       "Task 1",
-			Description: "Description 1",
-			Status:      models.StatusPending,
-			Assignee:    "user1@example.com",
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
-		},
-		{
-			ID:          uuid.New(),
-			Title:       "Task 2",
-			Description: "Description 2",
-			Status:      models.StatusInProgress,
-			Assignee:    "user2@example.com",
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
-		},
-		{
-			ID:          uuid.New(),
-			Title:       "Task 3",
-			Description: "Description 3",
-			Status:      models.StatusCompleted,
-			Assignee:    "user3@example.com",
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
-		},
-	}
-
-	// Test SetAll
-	err := cache.SetAll(tasks)
-	assert.NoError(t, err)
-
-	// Test GetAll
-	retrievedTasks, err := cache.GetAll()
-	assert.NoError(t, err)
-	assert.Len(t, retrievedTasks, 3)
-
-	// Verify all tasks are present (order may vary due to map iteration)
-	foundTasks := make(map[string]bool)
-	for _, task := range retrievedTasks {
-		foundTasks[task.Title] = true
-	}
-	assert.True(t, foundTasks["Task 1"])
-	assert.True(t, foundTasks["Task 2"])
-	assert.True(t, foundTasks["Task 3"])
-}
-
-func TestTaskCacheInvalidateAll(t *testing.T) {
-	cache := cache.NewInMemoryCacheImpl[models.Task]()
-
-	// Add some tasks
-	task1 := models.Task{ID: uuid.New(), Title: "Task 1", Status: models.StatusPending, CreatedAt: time.Now(), UpdatedAt: time.Now()}
-	task2 := models.Task{ID: uuid.New(), Title: "Task 2", Status: models.StatusInProgress, CreatedAt: time.Now(), UpdatedAt: time.Now()}
-
-	cache.Set(task1.ID.String(), task1)
-	cache.Set(task2.ID.String(), task2)
-
-	// Verify tasks are cached
-	retrievedTasks, err := cache.GetAll()
-	assert.NoError(t, err)
-	assert.Len(t, retrievedTasks, 2)
-
-	// Invalidate all
-	err = cache.InvalidateAll()
-	assert.NoError(t, err)
-
-	// Verify cache is empty
-	retrievedTasks, err = cache.GetAll()
-	assert.NoError(t, err)
-	assert.Len(t, retrievedTasks, 0)
-
-	// Individual gets should fail
-	_, err = cache.Get(task1.ID.String())
-	assert.Error(t, err)
-	_, err = cache.Get(task2.ID.String())
-	assert.Error(t, err)
 }
 
 func TestTaskCacheConcurrentAccess(t *testing.T) {
@@ -316,11 +234,6 @@ func TestTaskCacheConcurrentAccess(t *testing.T) {
 	}
 	wg.Wait()
 
-	// Verify all tasks were added (should have numGoroutines * numOperations tasks)
-	allTasks, err := cache.GetAll()
-	assert.NoError(t, err)
-	assert.Len(t, allTasks, numGoroutines*numOperations)
-
 	// Test concurrent Get operations
 	wg.Add(numGoroutines)
 	for i := 0; i < numGoroutines; i++ {
@@ -329,16 +242,13 @@ func TestTaskCacheConcurrentAccess(t *testing.T) {
 			for j := 0; j < numOperations; j++ {
 				// Try to get a random task (some may not exist)
 				randomID := uuid.New().String()
-				cache.Get(randomID) // Ignore errors, just test concurrency
+				task, err := cache.Get(randomID) // Test concurrency
+				_ = task
+				_ = err
 			}
 		}()
 	}
 	wg.Wait()
-
-	// Cache should still contain all original tasks
-	allTasks, err = cache.GetAll()
-	assert.NoError(t, err)
-	assert.Len(t, allTasks, numGoroutines*numOperations)
 }
 
 func TestTaskSerialization(t *testing.T) {
@@ -412,15 +322,14 @@ func TestTaskCacheTypeAssertion(t *testing.T) {
 	cache.Set(task1.ID.String(), task1)
 	cache.Set(task2.ID.String(), task2)
 
-	// GetAll should correctly type-assert Task objects
-	allTasks, err := cache.GetAll()
+	// Get individual tasks
+	retrievedTask1, err := cache.Get(task1.ID.String())
 	assert.NoError(t, err)
-	assert.Len(t, allTasks, 2)
+	assert.NotNil(t, retrievedTask1)
+	assert.Equal(t, task1.Title, retrievedTask1.Title)
 
-	// Verify we can access Task-specific fields
-	for _, task := range allTasks {
-		assert.IsType(t, models.Task{}, task)
-		assert.NotEmpty(t, task.Title)
-		assert.IsType(t, models.TaskStatus(""), task.Status)
-	}
+	retrievedTask2, err := cache.Get(task2.ID.String())
+	assert.NoError(t, err)
+	assert.NotNil(t, retrievedTask2)
+	assert.Equal(t, task2.Title, retrievedTask2.Title)
 }

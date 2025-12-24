@@ -62,6 +62,7 @@ func TestRedisCacheImplSetAndGet(t *testing.T) {
 	// Test Get
 	retrievedTask, err := cache.Get(taskID.String())
 	assert.NoError(t, err)
+	assert.NotNil(t, retrievedTask)
 	assert.Equal(t, task.ID, retrievedTask.ID)
 	assert.Equal(t, task.Title, retrievedTask.Title)
 	assert.Equal(t, task.Description, retrievedTask.Description)
@@ -83,9 +84,9 @@ func TestRedisCacheImplGetNonExistent(t *testing.T) {
 	cache := NewRedisCacheImpl[models.Task]("tasks", redisCache)
 
 	// Test Get with non-existent key
-	_, err = cache.Get(uuid.New().String())
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "item not found in cache")
+	retrievedTask, err := cache.Get(uuid.New().String())
+	assert.NoError(t, err)
+	assert.Nil(t, retrievedTask)
 }
 
 func TestRedisCacheImplInvalidate(t *testing.T) {
@@ -115,93 +116,18 @@ func TestRedisCacheImplInvalidate(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify it exists
-	_, err = cache.Get(taskID.String())
+	retrievedTask, err := cache.Get(taskID.String())
 	assert.NoError(t, err)
+	assert.NotNil(t, retrievedTask)
 
 	// Invalidate it
 	err = cache.Invalidate(taskID.String())
 	assert.NoError(t, err)
 
 	// Verify it's gone
-	_, err = cache.Get(taskID.String())
-	assert.Error(t, err)
-}
-
-func TestRedisCacheImplGetAll(t *testing.T) {
-	// Start mini Redis
-	mr, err := miniredis.Run()
-	require.NoError(t, err)
-	defer mr.Close()
-
-	// Create cache
-	redisCache, err := NewRedisCache(mr.Addr(), "", 0)
-	require.NoError(t, err)
-	defer redisCache.Close()
-
-	cache := NewRedisCacheImpl[models.Task]("tasks", redisCache)
-
-	// Set multiple tasks with individual keys
-	tasks := []models.Task{
-		{
-			ID:        uuid.New(),
-			Title:     "Task 1",
-			Status:    models.StatusPending,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
-		{
-			ID:        uuid.New(),
-			Title:     "Task 2",
-			Status:    models.StatusInProgress,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
-	}
-
-	for _, task := range tasks {
-		err = cache.Set(task.ID.String(), task)
-		require.NoError(t, err)
-	}
-
-}
-
-func TestRedisCacheImplSetAll(t *testing.T) {
-	// Start mini Redis
-	mr, err := miniredis.Run()
-	require.NoError(t, err)
-	defer mr.Close()
-
-	// Create cache
-	redisCache, err := NewRedisCache(mr.Addr(), "", 0)
-	require.NoError(t, err)
-	defer redisCache.Close()
-
-	cache := NewRedisCacheImpl[models.Task]("tasks", redisCache)
-
-	// Create tasks
-	tasks := []models.Task{
-		{
-			ID:        uuid.New(),
-			Title:     "Bulk Task 1",
-			Status:    models.StatusPending,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
-		{
-			ID:        uuid.New(),
-			Title:     "Bulk Task 2",
-			Status:    models.StatusCompleted,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
-	}
-
-	// Test SetAll
-	err = cache.SetAll(tasks)
+	retrievedTask, err = cache.Get(taskID.String())
 	assert.NoError(t, err)
-
-	// Note: SetAll uses index-based keys, so we can't easily test retrieval
-	// In real usage, GetAll would need to be implemented differently
+	assert.Nil(t, retrievedTask)
 }
 
 func TestRedisCacheImplConcurrentAccess(t *testing.T) {

@@ -53,19 +53,18 @@ func (r *RedisCache) Set(key string, data any, expiration time.Duration) error {
 }
 
 // Get gets data from Redis cache
-func Get[T any](r *RedisCache, format string, args ...any) (T, error) {
+func Get[T any](r *RedisCache, format string, args ...any) (*T, error) {
 	key := fmt.Sprintf(format, args...)
 	cmd := r.client.Get(r.ctx, key)
-	var blank T
 	raw, err := cmd.Bytes()
 	if err != nil {
 		if err == redis.Nil {
-			return blank, fmt.Errorf("item not found in cache")
+			return nil, nil
 		}
-		return blank, err
+		return nil, err
 	}
-	return utils.JsonDecode[T](raw), nil
-
+	result := utils.JsonDecode[T](raw)
+	return &result, nil
 }
 
 // Set sets data to Redis cache

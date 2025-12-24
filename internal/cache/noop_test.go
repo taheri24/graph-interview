@@ -23,18 +23,21 @@ func TestNoOpCacheImplImplementsInterface(t *testing.T) {
 func TestNoOpCacheImplGet(t *testing.T) {
 	emptyCache := NewNoOpCacheImpl[models.Task]()
 
-	// Any key should return cache miss error
+	// Any key should return nil
 	taskID := uuid.New().String()
-	_, err := emptyCache.Get(taskID)
-	assert.Equal(t, err, nil)
+	task, err := emptyCache.Get(taskID)
+	assert.NoError(t, err)
+	assert.Nil(t, task)
 
 	// Test with different keys
-	_, err = emptyCache.Get("any-key")
-	assert.Equal(t, err, nil)
+	task, err = emptyCache.Get("any-key")
+	assert.NoError(t, err)
+	assert.Nil(t, task)
 
 	// Test with empty key
-	_, err = emptyCache.Get("")
-	assert.Equal(t, err, nil)
+	task, err = emptyCache.Get("")
+	assert.NoError(t, err)
+	assert.Nil(t, task)
 }
 
 func TestNoOpCacheImplSet(t *testing.T) {
@@ -72,55 +75,6 @@ func TestNoOpCacheImplInvalidate(t *testing.T) {
 
 	// Test with empty key
 	err = cache.Invalidate("")
-	assert.NoError(t, err)
-}
-
-func TestNoOpCacheImplGetAll(t *testing.T) {
-	cache := NewNoOpCacheImpl[models.Task]()
-
-	// GetAll should return empty slice
-	tasks, err := cache.GetAll()
-	assert.NoError(t, err)
-	assert.IsType(t, []models.Task{}, tasks)
-	assert.Len(t, tasks, 0)
-	assert.Empty(t, tasks)
-}
-
-func TestNoOpCacheImplSetAll(t *testing.T) {
-	cache := NewNoOpCacheImpl[models.Task]()
-
-	tasks := []models.Task{
-		{
-			ID:        uuid.New(),
-			Title:     "Task 1",
-			Status:    models.StatusPending,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
-		{
-			ID:        uuid.New(),
-			Title:     "Task 2",
-			Status:    models.StatusCompleted,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
-	}
-
-	// SetAll should succeed (do nothing)
-	err := cache.SetAll(tasks)
-	assert.NoError(t, err)
-
-	// Verify nothing was stored
-	allTasks, err := cache.GetAll()
-	assert.NoError(t, err)
-	assert.Len(t, allTasks, 0)
-}
-
-func TestNoOpCacheImplInvalidateAll(t *testing.T) {
-	cache := NewNoOpCacheImpl[models.Task]()
-
-	// InvalidateAll should always succeed (do nothing)
-	err := cache.InvalidateAll()
 	assert.NoError(t, err)
 }
 
@@ -203,35 +157,6 @@ func TestNoOpCacheImplConcurrentAccess(t *testing.T) {
 
 	// If we reach here without panics, the test passes
 	assert.True(t, true, "Concurrent operations completed without panics")
-}
-
-func TestNoOpCacheImplBulkOperations(t *testing.T) {
-	cache := NewNoOpCacheImpl[models.Task]()
-
-	// Create a large number of tasks
-	var tasks []models.Task
-	for i := 0; i < 1000; i++ {
-		tasks = append(tasks, models.Task{
-			ID:        uuid.New(),
-			Title:     "Bulk Task " + string(rune(i)),
-			Status:    models.StatusPending,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		})
-	}
-
-	// SetAll with many items should succeed
-	err := cache.SetAll(tasks)
-	assert.NoError(t, err)
-
-	// GetAll should still return empty (nothing stored)
-	allTasks, err := cache.GetAll()
-	assert.NoError(t, err)
-	assert.Len(t, allTasks, 0)
-
-	// InvalidateAll should succeed
-	err = cache.InvalidateAll()
-	assert.NoError(t, err)
 }
 
 func TestNoOpCacheImplEdgeCases(t *testing.T) {

@@ -189,49 +189,51 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 	}
 
 	// Try to get from cache first
-	task, err := h.cache.Get(id.String())
-	if err == nil {
+	taskPtr, err := h.cache.Get(id.String())
+	if err == nil && taskPtr != nil {
 		// Cache hit
+		c.Header("X-Cache-Status", "HIT")
 		response := TaskResponse{
-			ID:          task.ID,
-			Title:       task.Title,
-			Description: task.Description,
-			Status:      task.Status,
-			Assignee:    task.Assignee,
-			CreatedAt:   task.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-			UpdatedAt:   task.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			ID:          taskPtr.ID,
+			Title:       taskPtr.Title,
+			Description: taskPtr.Description,
+			Status:      taskPtr.Status,
+			Assignee:    taskPtr.Assignee,
+			CreatedAt:   taskPtr.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			UpdatedAt:   taskPtr.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		}
 		c.JSON(http.StatusOK, response)
 		return
 	}
 
 	// Cache miss, get from repository
-	taskPtr, err := h.repo.GetByID(id)
+	taskPtr, err = h.repo.GetByID(id)
 	if err != nil {
 		if utils.ErrIsRecordNotFound(err) {
+			c.Header("X-Cache-Status", "MISS")
 			c.JSON(http.StatusNotFound, NewErrorResponse("Task not found"))
 		} else {
+			c.Header("X-Cache-Status", "MISS")
 			c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to get task"))
 		}
 		return
 	}
 
-	task = *taskPtr
-
 	// Set in cache
-	if err := h.cache.Set(id.String(), task); err != nil {
+	if err := h.cache.Set(id.String(), *taskPtr); err != nil {
 		// Log error but don't fail the request
 		// TODO: add proper logging
 	}
 
+	c.Header("X-Cache-Status", "MISS")
 	response := TaskResponse{
-		ID:          task.ID,
-		Title:       task.Title,
-		Description: task.Description,
-		Status:      task.Status,
-		Assignee:    task.Assignee,
-		CreatedAt:   task.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:   task.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		ID:          taskPtr.ID,
+		Title:       taskPtr.Title,
+		Description: taskPtr.Description,
+		Status:      taskPtr.Status,
+		Assignee:    taskPtr.Assignee,
+		CreatedAt:   taskPtr.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:   taskPtr.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 
 	c.JSON(http.StatusOK, response)

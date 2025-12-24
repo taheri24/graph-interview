@@ -4,19 +4,18 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"taheri24.ir/graph1/internal/handlers"
-	"taheri24.ir/graph1/internal/models"
-
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"taheri24.ir/graph1/internal/handlers"
+	"taheri24.ir/graph1/internal/models"
 )
 
 // MockTaskRepository implements TaskRepository for testing
@@ -30,16 +29,16 @@ type MockTaskRepository struct {
 
 // MockCache implements CacheInterface for testing
 type MockCache struct {
-	GetFunc        func(id string) (models.Task, error)
+	GetFunc        func(id string) (*models.Task, error)
 	SetFunc        func(id string, item models.Task) error
 	InvalidateFunc func(id string) error
 }
 
-func (m *MockCache) Get(id string) (models.Task, error) {
+func (m *MockCache) Get(id string) (*models.Task, error) {
 	if m.GetFunc != nil {
 		return m.GetFunc(id)
 	}
-	return models.Task{}, fmt.Errorf("cache miss")
+	return nil, nil
 }
 
 func (m *MockCache) Set(id string, item models.Task) error {

@@ -21,23 +21,8 @@ func NewRedisCacheImpl[T any](sectionName string, redisCache *RedisCache) *Redis
 	}
 }
 
-// GetAll implements CacheInterface.GetAll
-func (r *RedisCacheImpl[T]) GetAll() ([]T, error) {
-	return Get[[]T](r.redisCache, "%s", r.sectionName)
-}
-
-// SetAll implements CacheInterface.SetAll
-func (r *RedisCacheImpl[T]) SetAll(items []T) error {
-	return Set(r.redisCache, items, "%s", r.sectionName)
-}
-
-// InvalidateAll implements CacheInterface.InvalidateAll
-func (r *RedisCacheImpl[T]) InvalidateAll() error {
-	return r.redisCache.client.Del(context.Background(), r.sectionName).Err()
-}
-
 // Get implements CacheInterface.Get
-func (r *RedisCacheImpl[T]) Get(id string) (T, error) {
+func (r *RedisCacheImpl[T]) Get(id string) (*T, error) {
 	return Get[T](r.redisCache, "%s:%s", r.sectionName, id)
 }
 
