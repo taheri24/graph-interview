@@ -695,7 +695,7 @@ go tool cover -func=coverage.out
 go tool cover -html=coverage.out -o coverage.html
 ```
 
-Current test coverage: **76.5%** (exceeds the 70% requirement)
+Current test coverage: **83.1%** (exceeds the 80% target)
 
 #### Test Coverage Details
 - **Unit Tests**: Handler logic with mocked database interfaces
