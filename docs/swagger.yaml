@@ -1,0 +1,384 @@
+definitions:
+  handlers.Alert:
+    properties:
+      activeAt:
+        type: string
+      annotations:
+        additionalProperties:
+          type: string
+        type: object
+      labels:
+        additionalProperties:
+          type: string
+        type: object
+      state:
+        type: string
+      value:
+        type: string
+    type: object
+  handlers.CreateTaskRequest:
+    properties:
+      assignee:
+        maxLength: 100
+        type: string
+      description:
+        maxLength: 1000
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/models.TaskStatus'
+        enum:
+        - pending
+        - in_progress
+        - completed
+      title:
+        maxLength: 200
+        minLength: 1
+        type: string
+    required:
+    - title
+    type: object
+  handlers.ErrorResponse:
+    properties:
+      error:
+        type: string
+      message:
+        type: string
+    type: object
+  handlers.FireAlertRequest:
+    properties:
+      alert_name:
+        type: string
+    required:
+    - alert_name
+    type: object
+  handlers.PrometheusAlertResponse:
+    properties:
+      data:
+        properties:
+          alerts:
+            items:
+              $ref: '#/definitions/handlers.Alert'
+            type: array
+        type: object
+      status:
+        type: string
+    type: object
+  handlers.TaskListResponse:
+    properties:
+      has_next:
+        type: boolean
+      has_previous:
+        type: boolean
+      limit:
+        type: integer
+      page:
+        type: integer
+      tasks:
+        items:
+          $ref: '#/definitions/handlers.TaskResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  handlers.TaskResponse:
+    properties:
+      assignee:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      status:
+        $ref: '#/definitions/models.TaskStatus'
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  handlers.UpdateTaskRequest:
+    properties:
+      assignee:
+        maxLength: 100
+        type: string
+      description:
+        maxLength: 1000
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/models.TaskStatus'
+        enum:
+        - pending
+        - in_progress
+        - completed
+      title:
+        maxLength: 200
+        minLength: 1
+        type: string
+    type: object
+  models.TaskStatus:
+    enum:
+    - pending
+    - in_progress
+    - completed
+    type: string
+    x-enum-varnames:
+    - StatusPending
+    - StatusInProgress
+    - StatusCompleted
+info:
+  contact: {}
+paths:
+  /api/v1/alerts:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve active alerts from the Prometheus monitoring system
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PrometheusAlertResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Get current alerts from Prometheus
+      tags:
+      - alerts
+  /api/v1/alerts/fire:
+    post:
+      consumes:
+      - application/json
+      description: Manually trigger an alert by setting the alert trigger metric
+      parameters:
+      - description: Alert to fire
+        in: body
+        name: alert
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.FireAlertRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Manually fire an alert
+      tags:
+      - alerts
+  /api/v1/alerts/reset:
+    post:
+      consumes:
+      - application/json
+      description: Reset an alert by clearing the alert trigger metric
+      parameters:
+      - description: Alert to reset
+        in: body
+        name: alert
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.FireAlertRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Reset an alert
+      tags:
+      - alerts
+  /api/v1/tasks:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a paginated list of tasks with optional filtering by status
+        and assignee
+      parameters:
+      - description: 'Page number (default: 1)'
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - description: 'Items per page (default: 10, max: 100)'
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      - description: Filter by status (pending, in_progress, completed)
+        in: query
+        name: status
+        type: string
+      - description: Filter by assignee
+        in: query
+        name: assignee
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.TaskListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Get all tasks with pagination and filtering
+      tags:
+      - tasks
+    post:
+      consumes:
+      - application/json
+      description: Create a new task with the provided information
+      parameters:
+      - description: Task information
+        in: body
+        name: task
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.TaskResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Create a new task
+      tags:
+      - tasks
+  /api/v1/tasks/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a task by its UUID
+      parameters:
+      - description: Task ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Delete a task
+      tags:
+      - tasks
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a specific task by its UUID
+      parameters:
+      - description: Task ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.TaskResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Get a task by ID
+      tags:
+      - tasks
+    put:
+      consumes:
+      - application/json
+      description: Update an existing task with the provided information. Only provided
+        fields will be updated.
+      parameters:
+      - description: Task ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Task update information
+        in: body
+        name: task
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.UpdateTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.TaskResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Update a task
+      tags:
+      - tasks
+swagger: "2.0"
