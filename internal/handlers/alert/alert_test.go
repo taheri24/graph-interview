@@ -14,21 +14,158 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// MockHTTPClient implements HTTPClient interface for testing
+type MockHTTPClient struct {
+	Response *http.Response
+	Error    error
+}
+
+func (m *MockHTTPClient) Get(url string) (*http.Response, error) {
+	return m.Response, m.Error
+}
+
 func TestNewAlertHandler(t *testing.T) {
 	handler := NewAlertHandler()
 	assert.NotNil(t, handler)
+	assert.NotNil(t, handler.httpClient)
+	assert.Equal(t, "http://prometheus:9090/api/v1/alerts", handler.prometheusURL)
 }
 
-func TestGetAlerts_HandlerExists(t *testing.T) {
+func TestNewAlertHandlerWithDeps(t *testing.T) {
+	mockClient := &MockHTTPClient{}
+	customURL := "http://custom-prometheus:9090/api/v1/alerts"
+	handler := NewAlertHandlerWithDeps(mockClient, customURL)
+	assert.NotNil(t, handler)
+	assert.Equal(t, mockClient, handler.httpClient)
+	assert.Equal(t, customURL, handler.prometheusURL)
+}
+
+func TestGetAlerts_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	handler := &AlertHandler{}
-	assert.NotNil(t, handler)
+	// Create mock response
+	mockResponse := &http.Response{
+		StatusCode: http.StatusOK,
+		Body: io.NopCloser(strings.NewReader(`{
+			"status": "success",
+			"data": {
+				"alerts": [
+					{
+						"labels": {"alertname": "TestAlert"},
+						"annotations": {"summary": "Test alert"},
+						"state": "firing",
+						"activeAt": "2023-12-24T10:00:00Z",
+						"value": "1"
+					}
+				]
+			}
+		}`)),
+		Header: make(http.Header),
+	}
 
-	// Test that the handler has the expected methods
-	// This is a basic test since the actual HTTP call is hard to mock
-	// without refactoring the code to accept a configurable HTTP client
-	assert.NotNil(t, handler.GetAlerts)
+	mockClient := &MockHTTPClient{Response: mockResponse}
+	handler := NewAlertHandlerWithDeps(mockClient, "http://test-prometheus/api/v1/alerts")
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = &http.Request{Method: "GET"}
+
+	handler.GetAlerts(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response PrometheusAlertResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.Equal(t, "success", response.Status)
+	assert.Len(t, response.Data.Alerts, 1)
+	assert.Equal(t, "TestAlert", response.Data.Alerts[0].Labels["alertname"])
+}
+
+func TestGetAlerts_HTTPError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	mockClient := &MockHTTPClient{Error: assert.AnError}
+	handler := NewAlertHandlerWithDeps(mockClient, "http://test-prometheus/api/v1/alerts")
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = &http.Request{Method: "GET"}
+
+	handler.GetAlerts(c)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+	var response dto.ErrorResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.Equal(t, "Failed to query Prometheus", response.Error)
+}
+
+func TestGetAlerts_ReadError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	// Create response with body that will fail to read
+	mockResponse := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       &errorReader{err: assert.AnError},
+		Header:     make(http.Header),
+	}
+
+	mockClient := &MockHTTPClient{Response: mockResponse}
+	handler := NewAlertHandlerWithDeps(mockClient, "http://test-prometheus/api/v1/alerts")
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = &http.Request{Method: "GET"}
+
+	handler.GetAlerts(c)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+	var response dto.ErrorResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.Equal(t, "Failed to read Prometheus response", response.Error)
+}
+
+func TestGetAlerts_InvalidJSON(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	mockResponse := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader(`invalid json`)),
+		Header:     make(http.Header),
+	}
+
+	mockClient := &MockHTTPClient{Response: mockResponse}
+	handler := NewAlertHandlerWithDeps(mockClient, "http://test-prometheus/api/v1/alerts")
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = &http.Request{Method: "GET"}
+
+	handler.GetAlerts(c)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+	var response dto.ErrorResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.Equal(t, "Failed to parse Prometheus response", response.Error)
+}
+
+// errorReader is a helper for testing read errors
+type errorReader struct {
+	err error
+}
+
+func (e *errorReader) Read(p []byte) (n int, err error) {
+	return 0, e.err
+}
+
+func (e *errorReader) Close() error {
+	return nil
 }
 
 // TestPrometheusAlertResponse_JSON tests the JSON structure

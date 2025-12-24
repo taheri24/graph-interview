@@ -11,10 +11,31 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type AlertHandler struct{}
+// HTTPClient interface for making HTTP requests (allows mocking)
+type HTTPClient interface {
+	Get(url string) (*http.Response, error)
+}
 
+// AlertHandler handles alert-related HTTP requests
+type AlertHandler struct {
+	httpClient    HTTPClient
+	prometheusURL string
+}
+
+// NewAlertHandler creates a new AlertHandler with default configuration
 func NewAlertHandler() *AlertHandler {
-	return &AlertHandler{}
+	return &AlertHandler{
+		httpClient:    &http.Client{},
+		prometheusURL: "http://prometheus:9090/api/v1/alerts",
+	}
+}
+
+// NewAlertHandlerWithDeps creates a new AlertHandler with custom dependencies (for testing)
+func NewAlertHandlerWithDeps(httpClient HTTPClient, prometheusURL string) *AlertHandler {
+	return &AlertHandler{
+		httpClient:    httpClient,
+		prometheusURL: prometheusURL,
+	}
 }
 
 // PrometheusAlertResponse represents the response from Prometheus /api/v1/alerts
@@ -45,7 +66,7 @@ type Alert struct {
 // @Router /api/v1/alerts [get]
 func (h *AlertHandler) GetAlerts(c *gin.Context) {
 	// Query Prometheus API
-	resp, err := http.Get("http://prometheus:9090/api/v1/alerts")
+	resp, err := h.httpClient.Get(h.prometheusURL)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.NewErrorResponse("Failed to query Prometheus"))
 		return

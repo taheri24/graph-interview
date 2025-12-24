@@ -663,3 +663,144 @@ func (suite *TaskHandlerTestSuite) TestGetTasks_DatabaseError() {
 	// Assert
 	assert.Equal(suite.T(), http.StatusInternalServerError, w.Code)
 }
+
+func (suite *TaskHandlerTestSuite) TestGetTask_CacheMiss() {
+	// Setup
+	taskID := uuid.New()
+	expectedTask := &models.Task{
+		ID:          taskID,
+		Title:       "Cached Task",
+		Description: "From Database",
+		Status:      types.StatusCompleted,
+		Assignee:    "cache@example.com",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	// Cache returns nil (miss), then DB returns task
+	suite.mockCache.GetFunc = func(id string) (*models.Task, error) {
+		return nil, nil // cache miss
+	}
+	suite.mockRepo.GetByIDFunc = func(ctx context.Context, id uuid.UUID) (*models.Task, error) {
+		if id == taskID {
+			return expectedTask, nil
+		}
+		return nil, sql.ErrNoRows
+	}
+
+	// Execute
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/tasks/"+taskID.String(), nil)
+	suite.router.GET("/tasks/:id", suite.handler.GetTask)
+	suite.router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(suite.T(), http.StatusOK, w.Code)
+
+	var response dto.TaskResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), taskID, response.ID)
+	assert.Equal(suite.T(), "Cached Task", response.Title)
+}
+
+func (suite *TaskHandlerTestSuite) TestUpdateTask_CacheInvalidate() {
+	// Setup
+	taskID := uuid.New()
+	existingTask := &models.Task{
+		ID:          taskID,
+		Title:       "Original Title",
+		Description: "Original Description",
+		Status:      types.StatusPending,
+		Assignee:    "original@example.com",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	updateReq := dto.UpdateTaskRequest{
+		Title: stringPtr("Updated Title"),
+	}
+
+	suite.mockRepo.GetByIDFunc = func(ctx context.Context, id uuid.UUID) (*models.Task, error) {
+		if id == taskID {
+			return existingTask, nil
+		}
+		return nil, sql.ErrNoRows
+	}
+
+	suite.mockRepo.UpdateFunc = func(ctx context.Context, task *models.Task) error {
+		return nil
+	}
+
+	invalidateCalled := false
+	suite.mockCache.InvalidateFunc = func(id string) error {
+		invalidateCalled = true
+		return nil
+	}
+
+	// Execute
+	w := httptest.NewRecorder()
+	body, _ := json.Marshal(updateReq)
+	req, _ := http.NewRequest("PUT", "/tasks/"+taskID.String(), bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	suite.router.PUT("/tasks/:id", suite.handler.UpdateTask)
+	suite.router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(suite.T(), http.StatusOK, w.Code)
+	assert.True(suite.T(), invalidateCalled, "Cache should be invalidated after update")
+
+	var response dto.TaskResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "Updated Title", response.Title)
+}
+
+func (suite *TaskHandlerTestSuite) TestUpdateTask_CacheInvalidateError() {
+	// Setup
+	taskID := uuid.New()
+	existingTask := &models.Task{
+		ID:          taskID,
+		Title:       "Original Title",
+		Description: "Original Description",
+		Status:      types.StatusPending,
+		Assignee:    "original@example.com",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	updateReq := dto.UpdateTaskRequest{
+		Title: stringPtr("Updated Title"),
+	}
+
+	suite.mockRepo.GetByIDFunc = func(ctx context.Context, id uuid.UUID) (*models.Task, error) {
+		if id == taskID {
+			return existingTask, nil
+		}
+		return nil, sql.ErrNoRows
+	}
+
+	suite.mockRepo.UpdateFunc = func(ctx context.Context, task *models.Task) error {
+		return nil
+	}
+
+	suite.mockCache.InvalidateFunc = func(id string) error {
+		return assert.AnError // cache invalidate fails
+	}
+
+	// Execute
+	w := httptest.NewRecorder()
+	body, _ := json.Marshal(updateReq)
+	req, _ := http.NewRequest("PUT", "/tasks/"+taskID.String(), bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	suite.router.PUT("/tasks/:id", suite.handler.UpdateTask)
+	suite.router.ServeHTTP(w, req)
+
+	// Assert - should still succeed despite cache error
+	assert.Equal(suite.T(), http.StatusOK, w.Code)
+
+	var response dto.TaskResponse
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), "Updated Title", response.Title)
+}
