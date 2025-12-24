@@ -3,6 +3,8 @@ package server
 import (
 	"fmt"
 	"log/slog"
+	"net/http/pprof"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"taheri24.ir/graph1/internal/cache"
@@ -67,5 +69,29 @@ func SetupAppServer(db *database.Database, cfg *config.Config) *gin.Engine {
 	// Setup metrics endpoint
 	middleware.SetupMetricsEndpoint(rootRouter)
 
+	// Setup pprof endpoints if enabled
+	if os.Getenv("PPROF_ENABLED") == "true" {
+		setupPprofEndpoints(rootRouter)
+	}
+
 	return rootRouter
+}
+
+// setupPprofEndpoints adds pprof debugging endpoints to the router
+func setupPprofEndpoints(router *gin.Engine) {
+	pprofGroup := router.Group("/debug/pprof")
+	{
+		pprofGroup.GET("/", gin.WrapF(pprof.Index))
+		pprofGroup.GET("/cmdline", gin.WrapF(pprof.Cmdline))
+		pprofGroup.GET("/profile", gin.WrapF(pprof.Profile))
+		pprofGroup.POST("/symbol", gin.WrapF(pprof.Symbol))
+		pprofGroup.GET("/symbol", gin.WrapF(pprof.Symbol))
+		pprofGroup.GET("/trace", gin.WrapF(pprof.Trace))
+		pprofGroup.GET("/heap", gin.WrapF(pprof.Handler("heap").ServeHTTP))
+		pprofGroup.GET("/goroutine", gin.WrapF(pprof.Handler("goroutine").ServeHTTP))
+		pprofGroup.GET("/threadcreate", gin.WrapF(pprof.Handler("threadcreate").ServeHTTP))
+		pprofGroup.GET("/block", gin.WrapF(pprof.Handler("block").ServeHTTP))
+	}
+
+	slog.Info("Pprof endpoints enabled at /debug/pprof")
 }

@@ -236,6 +236,28 @@ go test ./... -cover
 # Run tests with coverage report
 go test ./... -coverprofile=coverage.out
 go tool cover -html=coverage.out -o coverage.html
+
+# Run load tests with pprof profiling
+PPROF_ENABLED=true docker-compose up -d  # Start services with profiling
+./test-load.sh                             # Run medium load test
+```
+
+### Load Testing
+
+The `test-load.sh` script performs medium load testing with pprof profiling:
+
+- **Concurrent Requests**: 5 workers by default
+- **Total Requests**: 200 requests by default
+- **Operations**: Mix of GET, POST, PUT operations on tasks
+- **Pprof Profiles**: CPU, memory, and goroutine profiles collected
+- **Reports**: Text-based analysis of performance bottlenecks
+
+Configure load test parameters:
+```bash
+export CONCURRENT_REQUESTS=10
+export TOTAL_REQUESTS=500
+export REQUEST_DELAY=0.05
+./test-load.sh
 ```
 
 ## Development
