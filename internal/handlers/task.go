@@ -1,14 +1,12 @@
 package handlers
 
 import (
-	"database/sql"
-	"errors"
 	"net/http"
 	"strconv"
 
-	"gorm.io/gorm"
 	"taheri24.ir/graph1/internal/database"
 	"taheri24.ir/graph1/internal/models"
+	"taheri24.ir/graph1/pkg/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -190,7 +188,7 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 
 	task, err := h.repo.GetByID(id)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) || errors.Is(err, sql.ErrNoRows) {
+		if utils.ErrIsRecordNotFound(err) {
 			c.JSON(http.StatusNotFound, NewErrorResponse("Task not found"))
 		} else {
 			c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to get task"))
@@ -234,7 +232,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 
 	task, err := h.repo.GetByID(id)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) || errors.Is(err, sql.ErrNoRows) {
+		if utils.ErrIsRecordNotFound(err) {
 			c.JSON(http.StatusNotFound, NewErrorResponse("Task not found"))
 		} else {
 			c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to get task"))
@@ -301,7 +299,7 @@ func (h *TaskHandler) DeleteTask(c *gin.Context) {
 	}
 
 	if err := h.repo.Delete(id); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) || errors.Is(err, sql.ErrNoRows) {
+		if utils.ErrIsRecordNotFound(err) {
 			c.JSON(http.StatusNotFound, NewErrorResponse("Task not found"))
 		} else {
 			c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to delete task"))
