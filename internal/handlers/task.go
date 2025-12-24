@@ -67,7 +67,7 @@ type TaskListResponse struct {
 // @Success 201 {object} TaskResponse
 // @Failure 400 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
-// @Router /tasks [post]
+// @Router /api/v1/tasks [post]
 func (h *TaskHandler) CreateTask(c *gin.Context) {
 	var req CreateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -117,7 +117,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 // @Param assignee query string false "Filter by assignee"
 // @Success 200 {object} TaskListResponse
 // @Failure 500 {object} ErrorResponse
-// @Router /tasks [get]
+// @Router /api/v1/tasks [get]
 func (h *TaskHandler) GetTasks(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "10")
@@ -177,7 +177,7 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 // @Success 200 {object} TaskResponse
 // @Failure 400 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse
-// @Router /tasks/{id} [get]
+// @Router /api/v1/tasks/{id} [get]
 func (h *TaskHandler) GetTask(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
@@ -221,7 +221,7 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 // @Failure 400 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
-// @Router /tasks/{id} [put]
+// @Router /api/v1/tasks/{id} [put]
 func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
@@ -289,7 +289,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 // @Failure 400 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
-// @Router /tasks/{id} [delete]
+// @Router /api/v1/tasks/{id} [delete]
 func (h *TaskHandler) DeleteTask(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)

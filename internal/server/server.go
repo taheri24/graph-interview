@@ -20,14 +20,14 @@ import (
 // @license.name Apache 2.0
 // @license.url http://www.apache.org/licenses/LICENSE-2.0.html
 // @host localhost:8080
-// @BasePath /
+// @BasePath /api/v1
 
 // @externalDocs.description OpenAPI
 // @externalDocs.url https://swagger.io/resources/open-api/
 
 func SetupAppServer(db *database.Database, taskHandler *handlers.TaskHandler, alertHandler *handlers.AlertHandler) *gin.Engine {
 	rootRouter := gin.Default()
-	apiRouter := rootRouter.Group("/api")
+	apiRouter := rootRouter.Group("/api/v1")
 	// Setup global middleware
 	middleware.SetupGlobalMiddleware(rootRouter)
 

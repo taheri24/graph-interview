@@ -27,11 +27,11 @@ func TestSetupAppServer_Snapshot(t *testing.T) {
 
 	// Hardcoded snapshot of expected routes
 	expected := map[string][]string{
-		"/metrics":       {"GET"},
-		"/api/health":    {"GET"},
-		"/api/tasks":     {"GET", "POST"},
-		"/api/tasks/:id": {"DELETE", "GET", "PUT"},
-		"/api/alerts":    {"GET"},
+		"/metrics":          {"GET"},
+		"/api/v1/health":    {"GET"},
+		"/api/v1/tasks":     {"GET", "POST"},
+		"/api/v1/tasks/:id": {"DELETE", "GET", "PUT"},
+		"/api/v1/alerts":    {"GET"},
 	}
 	for key := range expected {
 		t.Run(key, func(t *testing.T) {

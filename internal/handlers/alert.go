@@ -41,7 +41,7 @@ type Alert struct {
 // @Produce json
 // @Success 200 {object} PrometheusAlertResponse
 // @Failure 500 {object} ErrorResponse
-// @Router /alerts [get]
+// @Router /api/v1/alerts [get]
 func (h *AlertHandler) GetAlerts(c *gin.Context) {
 	// Query Prometheus API
 	resp, err := http.Get("http://prometheus:9090/api/v1/alerts")
@@ -81,7 +81,7 @@ type FireAlertRequest struct {
 // @Success 200 {object} map[string]string
 // @Failure 400 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
-// @Router /alerts/fire [post]
+// @Router /api/v1/alerts/fire [post]
 func (h *AlertHandler) FireAlert(c *gin.Context) {
 	var req FireAlertRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -108,7 +108,7 @@ func (h *AlertHandler) FireAlert(c *gin.Context) {
 // @Success 200 {object} map[string]string
 // @Failure 400 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
-// @Router /alerts/reset [post]
+// @Router /api/v1/alerts/reset [post]
 func (h *AlertHandler) ResetAlert(c *gin.Context) {
 	var req FireAlertRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
