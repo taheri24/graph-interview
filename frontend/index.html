@@ -102,25 +102,26 @@
                             @submit.prevent="isEditing ? updateTask() : createTask()"
                             class="space-y-4"
                         >
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1">Title</label>
-                                <input
-                                    x-model="newTask.title"
-                                    type="text"
-                                    placeholder="Enter task title..."
-                                    class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    required
-                                >
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1">Description</label>
-                                <textarea
-                                    x-model="newTask.description"
-                                    placeholder="Enter task description..."
-                                    rows="3"
-                                    class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                ></textarea>
-                            </div>
+                             <div>
+                                 <label class="block text-sm font-medium text-slate-700 mb-1">Title</label>
+                                 <input
+                                     x-model="newTask.title"
+                                     type="text"
+                                     placeholder="Enter task title..."
+                                     class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                     @input="validateTitle()"
+                                 >
+                                 <p x-show="errors.title" class="text-red-500 text-sm mt-1" x-text="errors.title"></p>
+                             </div>
+                             <div>
+                                 <label class="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                                 <textarea
+                                     x-model="newTask.description"
+                                     placeholder="Enter task description..."
+                                     rows="3"
+                                     class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                 ></textarea>
+                             </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-sm font-medium text-slate-700 mb-1">Status</label>
@@ -133,15 +134,15 @@
                                         <option value="completed">Completed</option>
                                     </select>
                                 </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-1">Assignee</label>
-                                    <input
-                                        x-model="newTask.assignee"
-                                        type="text"
-                                        placeholder="Enter assignee..."
-                                        class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    >
-                                </div>
+                                 <div>
+                                     <label class="block text-sm font-medium text-slate-700 mb-1">Assignee</label>
+                                     <input
+                                         x-model="newTask.assignee"
+                                         type="text"
+                                         placeholder="Enter assignee..."
+                                         class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                     >
+                                 </div>
                             </div>
                             <div class="flex gap-3">
                                 <button
@@ -300,6 +301,31 @@
                 toastId: 0,
                 alerts: [],
                 newAlertName: '',
+                errors: {
+                    title: ''
+                },
+
+                validateTitle() {
+                    const title = this.newTask.title.trim();
+                    if (!title) {
+                        this.errors.title = 'Title is required';
+                    } else if (title.length > 200) {
+                        this.errors.title = 'Title must be at most 200 characters';
+                    } else {
+                        this.errors.title = '';
+                    }
+                },
+
+                validateForm() {
+                    this.validateTitle();
+                    return !this.errors.title;
+                },
+
+                clearErrors() {
+                    this.errors = {
+                        title: ''
+                    };
+                },
 
                 init() {
                     this.loadTasks();
@@ -320,7 +346,6 @@
                         if (!response.ok) throw new Error('Failed to load tasks');
 
                         const data = await response.json();
-                        console.log('loaded task api response>>>',data,data.tasks);
                         this.tasks = data.tasks || [];
                         this.taskCount = this.tasks.length;
                     } catch (error) {
@@ -390,8 +415,7 @@
                 },
 
                 async createTask() {
-                    if (!this.newTask.title.trim()) {
-                        this.showToast('Title is required', 'error');
+                    if (!this.validateForm()) {
                         return;
                     }
 
@@ -423,8 +447,7 @@
                 },
 
                 async updateTask() {
-                    if (!this.newTask.title.trim()) {
-                        this.showToast('Title is required', 'error');
+                    if (!this.validateForm()) {
                         return;
                     }
 
@@ -475,17 +498,29 @@
                     }
                 },
 
-                editTask(task) {
-                    this.isEditing = true;
-                    this.editingTaskId = task.id;
-                    this.newTask = {
-                        title: task.title,
-                        description: task.description,
-                        status: task.status,
-                        assignee: task.assignee || ''
-                    };
-                    this.showCreateForm = true;
-                    window.scrollTo(0, 0);
+                async editTask(task) {
+                    try {
+                        const response = await fetch(`/api/v1/tasks/${task.id}`);
+                        if (!response.ok) throw new Error('Failed to load task');
+
+                        const data = await response.json();
+                        const loadedTask = data;
+
+                        this.isEditing = true;
+                        this.editingTaskId = loadedTask.id;
+                        this.newTask = {
+                            title: loadedTask.title,
+                            description: loadedTask.description,
+                            status: loadedTask.status,
+                            assignee: loadedTask.assignee || ''
+                        };
+                        this.clearErrors();
+                        this.showCreateForm = true;
+                        window.scrollTo(0, 0);
+                    } catch (error) {
+                        this.showToast('Failed to load task for editing', 'error');
+                        console.error(error);
+                    }
                 },
 
                 async checkHealth() {
@@ -508,6 +543,7 @@
                             status: 'pending',
                             assignee: ''
                         };
+                        this.clearErrors();
                     }
                 },
 

@@ -41,7 +41,6 @@ func SetupAppServer(db *database.Database, cfg *config.Config) *gin.Engine {
 			slog.Error("Failed to initialize Redis cache", "err", err)
 			return nil
 		}
-		defer redisCache.Close()
 		taskCache = cache.NewRedisCacheImpl[models.Task]("tasks", redisCache)
 		slog.Info("Cache enabled")
 	} else {
