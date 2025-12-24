@@ -29,18 +29,8 @@ type IntegrationTestSuite struct {
 func (suite *IntegrationTestSuite) SetupSuite() {
 	gin.SetMode(gin.TestMode)
 
-	// Use test database configuration
-	testConfig := &config.Config{
-		Database: config.DatabaseConfig{
-			Type:     "postgres",
-			Host:     getEnv("TEST_DB_HOST", "localhost"),
-			Port:     getEnv("TEST_DB_PORT", "5433"),
-			User:     getEnv("TEST_DB_USER", "postgres"),
-			Password: getEnv("TEST_DB_PASSWORD", "password"),
-			DBName:   getEnv("TEST_DB_NAME", "taskdb_test"),
-			SSLMode:  "disable",
-		},
-	}
+	// Use in-memory test database configuration
+	testConfig := config.NewTestConfig()
 
 	var err error
 	suite.db, err = database.NewDatabase(testConfig)

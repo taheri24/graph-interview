@@ -167,12 +167,7 @@ func (suite *DatabaseTestSuite) TestHealthError() {
 
 // TestNewDatabaseSQLite tests SQLite database initialization
 func TestNewDatabaseSQLite(t *testing.T) {
-	cfg := &config.Config{
-		Database: config.DatabaseConfig{
-			Type:   "sqlite",
-			DBName: ":memory:", // Use in-memory SQLite for testing
-		},
-	}
+	cfg := config.NewTestConfig()
 
 	db, err := database.NewDatabase(cfg)
 	assert.NoError(t, err)
@@ -193,12 +188,7 @@ func TestNewDatabaseSQLite(t *testing.T) {
 
 // TestNewDatabaseSQLiteFile tests SQLite with in-memory database
 func TestNewDatabaseSQLiteInMemory(t *testing.T) {
-	cfg := &config.Config{
-		Database: config.DatabaseConfig{
-			Type:   "sqlite",
-			DBName: ":memory:",
-		},
-	}
+	cfg := config.NewTestConfig()
 
 	db, err := database.NewDatabase(cfg)
 	assert.NoError(t, err)

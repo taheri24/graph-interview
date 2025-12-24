@@ -44,3 +44,72 @@ func TestMust_NilError(t *testing.T) {
 	result := Must("success", nil)
 	assert.Equal(t, "success", result)
 }
+
+func TestJsonEncode(t *testing.T) {
+	// Test encoding a string
+	encoded := JsonEncode("hello world")
+	assert.Equal(t, []byte(`"hello world"`), encoded)
+
+	// Test encoding an integer
+	encodedInt := JsonEncode(42)
+	assert.Equal(t, []byte("42"), encodedInt)
+
+	// Test encoding a boolean
+	encodedBool := JsonEncode(true)
+	assert.Equal(t, []byte("true"), encodedBool)
+
+	// Test encoding a slice
+	encodedSlice := JsonEncode([]int{1, 2, 3})
+	assert.Equal(t, []byte("[1,2,3]"), encodedSlice)
+
+	// Test encoding a struct
+	type TestStruct struct {
+		Name  string `json:"name"`
+		Value int    `json:"value"`
+	}
+	encodedStruct := JsonEncode(TestStruct{Name: "test", Value: 123})
+	assert.Equal(t, []byte(`{"name":"test","value":123}`), encodedStruct)
+}
+
+func TestJsonDecode(t *testing.T) {
+	// Test decoding a string
+	result := JsonDecode[string]([]byte(`"hello world"`))
+	assert.Equal(t, "hello world", result)
+
+	// Test decoding an integer
+	resultInt := JsonDecode[int]([]byte("42"))
+	assert.Equal(t, 42, resultInt)
+
+	// Test decoding a boolean
+	resultBool := JsonDecode[bool]([]byte("true"))
+	assert.Equal(t, true, resultBool)
+
+	// Test decoding a slice
+	resultSlice := JsonDecode[[]int]([]byte("[1,2,3]"))
+	assert.Equal(t, []int{1, 2, 3}, resultSlice)
+
+	// Test decoding a struct
+	type TestStruct struct {
+		Name  string `json:"name"`
+		Value int    `json:"value"`
+	}
+	resultStruct := JsonDecode[TestStruct]([]byte(`{"name":"test","value":123}`))
+	expected := TestStruct{Name: "test", Value: 123}
+	assert.Equal(t, expected, resultStruct)
+}
+
+func TestJsonDecode_Panic(t *testing.T) {
+	// Test that JsonDecode panics with invalid JSON
+	assert.Panics(t, func() {
+		JsonDecode[string]([]byte("invalid json"))
+	})
+
+	assert.Panics(t, func() {
+		JsonDecode[int]([]byte("not a number"))
+	})
+
+	// Test with incomplete JSON
+	assert.Panics(t, func() {
+		JsonDecode[map[string]interface{}]([]byte(`{"key":`))
+	})
+}

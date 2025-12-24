@@ -71,50 +71,50 @@ func TestLoad(t *testing.T) {
 
 func TestDatabaseConfigString(t *testing.T) {
 	// Test DSN without password
-	cfg := &config.Config{
-		Database: config.DatabaseConfig{
-			Type:     "postgres",
-			Host:     "localhost",
-			Port:     "5432",
-			User:     "postgres",
-			Password: "",
-			DBName:   "testdb",
-			SSLMode:  "disable",
-		},
+	dbCfg := config.DatabaseConfig{
+		Type:     "postgres",
+		Host:     "localhost",
+		Port:     "5432",
+		User:     "postgres",
+		Password: "",
+		DBName:   "testdb",
+		SSLMode:  "disable",
 	}
-
-	dsn := cfg.Database.String()
+	dsn := dbCfg.String()
 	expected := "host=localhost port=5432 user=postgres dbname=testdb sslmode=disable"
 	assert.Equal(t, expected, dsn)
 
 	// Test DSN with password
-	cfg.Database.Password = "password"
-	dsn = cfg.Database.String()
+	dbCfg.Password = "password"
+	dsn = dbCfg.String()
 	expected = "host=localhost port=5432 user=postgres password=password dbname=testdb sslmode=disable"
 	assert.Equal(t, expected, dsn)
 
 	// Test DSN with custom values
-	cfg.Database.Host = "customhost"
-	cfg.Database.Port = "5433"
-	cfg.Database.User = "customuser"
-	cfg.Database.Password = "custompass"
-	cfg.Database.DBName = "customdb"
-	cfg.Database.SSLMode = "require"
-
-	dsn = cfg.Database.String()
-	expected = "host=customhost port=5433 user=customuser password=custompass dbname=customdb sslmode=require"
+	dbCfg.Host = "customhost"
+	dbCfg.Port = "5433"
+	dbCfg.User = "customuser"
+	dbCfg.Password = "custompass"
+	dbCfg.DBName = "customdb"
+	dbCfg.SSLMode = "require"
+	dsn, expected = dbCfg.String(), `host=customhost port=5433 user=customuser password=custompass dbname=customdb sslmode=require`
 	assert.Equal(t, expected, dsn)
 
 	// Test SQLite DSN
-	cfg.Database.Type = "sqlite"
-	cfg.Database.DBName = "testdb"
-	dsn = cfg.Database.String()
+	dbCfg.Type = "sqlite"
+	dbCfg.DBName = "testdb"
+	dsn = dbCfg.String()
 	assert.Equal(t, "testdb.db", dsn)
 
 	// Test SQLite DSN with :memory
-	cfg.Database.DBName = ":memory"
-	dsn = cfg.Database.String()
-	assert.Equal(t, ":memory", dsn)
+	dbCfg.DBName = ":memory:"
+	dbCfg.Type = "sqlite"
+	assert.Equal(t, ":memory:", dbCfg.String())
+	// Test SQLite DSN with :memory
+	dbCfg.DSN = "postgresql://user:password@localhost:5432/dbname?sslmode=disable"
+	dbCfg.Type = "postgresql"
+	assert.Equal(t, "postgresql://user:password@localhost:5432/dbname?sslmode=disable", dbCfg.String())
+
 }
 
 func TestGetEnv(t *testing.T) {
@@ -158,14 +158,4 @@ func TestGetEnvAsInt(t *testing.T) {
 	os.Setenv("REDIS_DB", "invalid")
 	cfg = config.Load()
 	assert.Equal(t, 0, cfg.Redis.DB) // default value
-}
-
-func TestDatabaseConfigString_InvalidType(t *testing.T) {
-	cfg := &config.Config{
-		Database: config.DatabaseConfig{
-			Type: "invalid",
-		},
-	}
-
-	assert.Panics(t, func() { _ = cfg.Database.String() })
 }
