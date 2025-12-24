@@ -6,8 +6,10 @@ import (
 
 	"taheri24.ir/graph1/internal/cache"
 	"taheri24.ir/graph1/internal/database"
+	"taheri24.ir/graph1/internal/dto"
 	"taheri24.ir/graph1/internal/middleware"
 	"taheri24.ir/graph1/internal/models"
+	"taheri24.ir/graph1/internal/types"
 	"taheri24.ir/graph1/pkg/utils"
 
 	"github.com/gin-gonic/gin"
@@ -23,60 +25,23 @@ func NewTaskHandler(repo database.TaskRepository, cache cache.CacheInterface[mod
 	return &TaskHandler{repo: repo, cache: cache}
 }
 
-// CreateTaskRequest represents the request body for creating a task
-type CreateTaskRequest struct {
-	Title       string            `json:"title" binding:"required,min=1,max=200"`
-	Description string            `json:"description" binding:"max=1000"`
-	Status      models.TaskStatus `json:"status" binding:"omitempty,oneof=pending in_progress completed"`
-	Assignee    string            `json:"assignee" binding:"max=100"`
-}
-
-// UpdateTaskRequest represents the request body for updating a task
-type UpdateTaskRequest struct {
-	Title       *string            `json:"title" binding:"omitempty,min=1,max=200"`
-	Description *string            `json:"description" binding:"omitempty,max=1000"`
-	Status      *models.TaskStatus `json:"status" binding:"omitempty,oneof=pending in_progress completed"`
-	Assignee    *string            `json:"assignee" binding:"omitempty,max=100"`
-}
-
-// TaskResponse represents the response body for a task
-type TaskResponse struct {
-	ID          uuid.UUID         `json:"id"`
-	Title       string            `json:"title"`
-	Description string            `json:"description"`
-	Status      models.TaskStatus `json:"status"`
-	Assignee    string            `json:"assignee"`
-	CreatedAt   string            `json:"created_at"`
-	UpdatedAt   string            `json:"updated_at"`
-}
-
-// TaskListResponse represents the response body for listing tasks
-type TaskListResponse struct {
-	Tasks       []TaskResponse `json:"tasks"`
-	Total       int64          `json:"total"`
-	Page        int            `json:"page"`
-	Limit       int            `json:"limit"`
-	HasNext     bool           `json:"has_next"`
-	HasPrevious bool           `json:"has_previous"`
-}
-
 // CreateTask handles POST /tasks
 // @Summary Create a new task
 // @Description Create a new task with the provided information
 // @Tags tasks
 // @Accept json
 // @Produce json
-// @Param task body CreateTaskRequest true "Task information"
-// @Success 201 {object} TaskResponse
-// @Failure 400 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Param task body dto.CreateTaskRequest true "Task information"
+// @Success 201 {object} dto.TaskResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
 // @Router /api/v1/tasks [post]
 func (h *TaskHandler) CreateTask(c *gin.Context) {
-	var req CreateTaskRequest
+	var req dto.CreateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		logger := middleware.GetLoggerFromContext(c.Request.Context())
 		logger.Error("Invalid request body for creating task", "error", err)
-		c.JSON(http.StatusBadRequest, NewErr(err))
+		c.JSON(http.StatusBadRequest, dto.NewErr(err))
 		return
 	}
 
@@ -89,17 +54,17 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	}
 
 	if req.Status == "" {
-		task.Status = models.StatusPending
+		task.Status = types.StatusPending
 	}
 
 	if err := h.repo.Create(c.Request.Context(), &task); err != nil {
 		logger := middleware.GetLoggerFromContext(c.Request.Context())
 		logger.Error("Failed to create task in repository", "title", req.Title, "error", err)
-		c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to create task"))
+		c.JSON(http.StatusInternalServerError, dto.NewErrorResponse("Failed to create task"))
 		return
 	}
 
-	response := TaskResponse{
+	response := dto.TaskResponse{
 		ID:          task.ID,
 		Title:       task.Title,
 		Description: task.Description,
@@ -125,8 +90,8 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 // @Param limit query int false "Items per page (default: 10, max: 100)" minimum(1) maximum(100)
 // @Param status query string false "Filter by status (pending, in_progress, completed)"
 // @Param assignee query string false "Filter by assignee"
-// @Success 200 {object} TaskListResponse
-// @Failure 500 {object} ErrorResponse
+// @Success 200 {object} dto.TaskListResponse
+// @Failure 500 {object} dto.ErrorResponse
 // @Router /api/v1/tasks [get]
 func (h *TaskHandler) GetTasks(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
@@ -148,13 +113,13 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 	if err != nil {
 		logger := middleware.GetLoggerFromContext(c.Request.Context())
 		logger.Error("Failed to fetch tasks from repository", "page", page, "limit", limit, "status", status, "assignee", assignee, "error", err)
-		c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to fetch tasks"))
+		c.JSON(http.StatusInternalServerError, dto.NewErrorResponse("Failed to fetch tasks"))
 		return
 	}
 
-	taskResponses := make([]TaskResponse, len(tasks))
+	taskResponses := make([]dto.TaskResponse, len(tasks))
 	for i, task := range tasks {
-		taskResponses[i] = TaskResponse{
+		taskResponses[i] = dto.TaskResponse{
 			ID:          task.ID,
 			Title:       task.Title,
 			Description: task.Description,
@@ -167,7 +132,7 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 
 	totalPages := int((total + int64(limit) - 1) / int64(limit))
 
-	response := TaskListResponse{
+	response := dto.TaskListResponse{
 		Tasks:       taskResponses,
 		Total:       total,
 		Page:        page,
@@ -189,8 +154,8 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path string true "Task ID (UUID)"
-// @Success 200 {object} TaskResponse
-// @Failure 400 {object} ErrorResponse
+// @Success 200 {object} dto.TaskResponse
+// @Failure 400 {object} dto.ErrorResponse
 // @Failure 404 {object} ErrorResponse
 // @Router /api/v1/tasks/{id} [get]
 func (h *TaskHandler) GetTask(c *gin.Context) {
@@ -199,7 +164,7 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 	if err != nil {
 		logger := middleware.GetLoggerFromContext(c.Request.Context())
 		logger.Error("Invalid task ID provided", "idStr", idStr, "error", err)
-		c.JSON(http.StatusBadRequest, NewErrorResponse("Invalid task ID"))
+		c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Invalid task ID"))
 		return
 	}
 
@@ -210,7 +175,7 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 		logger := middleware.GetLoggerFromContext(c.Request.Context())
 		logger.Info("Task retrieved from cache", "id", id.String())
 		c.Header("X-Cache-Status", "HIT")
-		response := TaskResponse{
+		response := dto.TaskResponse{
 			ID:          taskPtr.ID,
 			Title:       taskPtr.Title,
 			Description: taskPtr.Description,
@@ -230,11 +195,11 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 		if utils.ErrIsRecordNotFound(err) {
 			logger.Info("Task not found", "id", id.String())
 			c.Header("X-Cache-Status", "MISS")
-			c.JSON(http.StatusNotFound, NewErrorResponse("Task not found"))
+			c.JSON(http.StatusNotFound, dto.NewErrorResponse("Task not found"))
 		} else {
 			logger.Error("Failed to get task from repository", "id", id.String(), "error", err)
 			c.Header("X-Cache-Status", "MISS")
-			c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to get task"))
+			c.JSON(http.StatusInternalServerError, dto.NewErrorResponse("Failed to get task"))
 		}
 		return
 	}
@@ -250,7 +215,7 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 	logger.Info("Task retrieved from database", "id", id.String())
 
 	c.Header("X-Cache-Status", "MISS")
-	response := TaskResponse{
+	response := dto.TaskResponse{
 		ID:          taskPtr.ID,
 		Title:       taskPtr.Title,
 		Description: taskPtr.Description,
@@ -270,11 +235,11 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path string true "Task ID (UUID)"
-// @Param task body UpdateTaskRequest true "Task update information"
-// @Success 200 {object} TaskResponse
-// @Failure 400 {object} ErrorResponse
+// @Param task body dto.UpdateTaskRequest true "Task update information"
+// @Success 200 {object} dto.TaskResponse
+// @Failure 400 {object} dto.ErrorResponse
 // @Failure 404 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
 // @Router /api/v1/tasks/{id} [put]
 func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	idStr := c.Param("id")
@@ -282,7 +247,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	if err != nil {
 		logger := middleware.GetLoggerFromContext(c.Request.Context())
 		logger.Error("Invalid task ID provided", "idStr", idStr, "error", err)
-		c.JSON(http.StatusBadRequest, NewErrorResponse("Invalid task ID"))
+		c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Invalid task ID"))
 		return
 	}
 
@@ -291,19 +256,19 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		logger := middleware.GetLoggerFromContext(c.Request.Context())
 		if utils.ErrIsRecordNotFound(err) {
 			logger.Info("Task not found for update", "id", id.String())
-			c.JSON(http.StatusNotFound, NewErrorResponse("Task not found"))
+			c.JSON(http.StatusNotFound, dto.NewErrorResponse("Task not found"))
 		} else {
 			logger.Error("Failed to get task for update", "id", id.String(), "error", err)
-			c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to get task"))
+			c.JSON(http.StatusInternalServerError, dto.NewErrorResponse("Failed to get task"))
 		}
 		return
 	}
 
-	var req UpdateTaskRequest
+	var req dto.UpdateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		logger := middleware.GetLoggerFromContext(c.Request.Context())
 		logger.Error("Invalid request body for updating task", "id", id.String(), "error", err)
-		c.JSON(http.StatusBadRequest, NewErr(err))
+		c.JSON(http.StatusBadRequest, dto.NewErr(err))
 		return
 	}
 
@@ -324,7 +289,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	if err := h.repo.Update(c.Request.Context(), task); err != nil {
 		logger := middleware.GetLoggerFromContext(c.Request.Context())
 		logger.Error("Failed to update task in repository", "id", id.String(), "error", err)
-		c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to update task"))
+		c.JSON(http.StatusInternalServerError, dto.NewErrorResponse("Failed to update task"))
 		return
 	}
 
@@ -335,7 +300,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		logger.Error("Failed to invalidate task cache", "id", id.String(), "error", err)
 	}
 
-	response := TaskResponse{
+	response := dto.TaskResponse{
 		ID:          task.ID,
 		Title:       task.Title,
 		Description: task.Description,
@@ -359,9 +324,9 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 // @Produce json
 // @Param id path string true "Task ID (UUID)"
 // @Success 204 "No Content"
-// @Failure 400 {object} ErrorResponse
+// @Failure 400 {object} dto.ErrorResponse
 // @Failure 404 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
 // @Router /api/v1/tasks/{id} [delete]
 func (h *TaskHandler) DeleteTask(c *gin.Context) {
 	idStr := c.Param("id")
@@ -369,17 +334,17 @@ func (h *TaskHandler) DeleteTask(c *gin.Context) {
 	if err != nil {
 		logger := middleware.GetLoggerFromContext(c.Request.Context())
 		logger.Error("Invalid task ID provided", "idStr", idStr, "error", err)
-		c.JSON(http.StatusBadRequest, NewErrorResponse("Invalid task ID"))
+		c.JSON(http.StatusBadRequest, dto.NewErrorResponse("Invalid task ID"))
 		return
 	}
 	if err := h.repo.Delete(c.Request.Context(), id); err != nil {
 		logger := middleware.GetLoggerFromContext(c.Request.Context())
 		if utils.ErrIsRecordNotFound(err) {
 			logger.Info("Task not found for deletion", "id", id.String())
-			c.JSON(http.StatusNotFound, NewErrorResponse("Task not found"))
+			c.JSON(http.StatusNotFound, dto.NewErrorResponse("Task not found"))
 		} else {
 			logger.Error("Failed to delete task from repository", "id", id.String(), "error", err)
-			c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to delete task"))
+			c.JSON(http.StatusInternalServerError, dto.NewErrorResponse("Failed to delete task"))
 		}
 		return
 	}

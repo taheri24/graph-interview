@@ -15,8 +15,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"taheri24.ir/graph1/internal/dto"
 	"taheri24.ir/graph1/internal/handlers"
 	"taheri24.ir/graph1/internal/models"
+	"taheri24.ir/graph1/internal/types"
 )
 
 // MockTaskRepository implements TaskRepository for testing
@@ -126,10 +128,10 @@ func TestTaskHandlerTestSuite(t *testing.T) {
 
 func (suite *TaskHandlerTestSuite) TestCreateTask_Success() {
 	// Setup
-	reqBody := handlers.CreateTaskRequest{
+	reqBody := dto.CreateTaskRequest{
 		Title:       "Test Task",
 		Description: "Test Description",
-		Status:      models.StatusPending,
+		Status:      types.StatusPending,
 		Assignee:    "test@example.com",
 	}
 
@@ -152,17 +154,17 @@ func (suite *TaskHandlerTestSuite) TestCreateTask_Success() {
 	// Assert
 	assert.Equal(suite.T(), http.StatusCreated, w.Code)
 
-	var response handlers.TaskResponse
+	var response dto.TaskResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), expectedID, response.ID)
 	assert.Equal(suite.T(), "Test Task", response.Title)
-	assert.Equal(suite.T(), models.StatusPending, response.Status)
+	assert.Equal(suite.T(), types.StatusPending, response.Status)
 }
 
 func (suite *TaskHandlerTestSuite) TestCreateTask_InvalidRequest() {
 	// Setup - missing required title
-	reqBody := handlers.CreateTaskRequest{
+	reqBody := dto.CreateTaskRequest{
 		Description: "Test Description",
 	}
 
@@ -177,7 +179,7 @@ func (suite *TaskHandlerTestSuite) TestCreateTask_InvalidRequest() {
 	// Assert
 	assert.Equal(suite.T(), http.StatusBadRequest, w.Code)
 
-	var response handlers.ErrorResponse
+	var response dto.ErrorResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Contains(suite.T(), response.Error, "required")
@@ -190,7 +192,7 @@ func (suite *TaskHandlerTestSuite) TestGetTask_Success() {
 		ID:          taskID,
 		Title:       "Test Task",
 		Description: "Test Description",
-		Status:      models.StatusInProgress,
+		Status:      types.StatusInProgress,
 		Assignee:    "test@example.com",
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -212,12 +214,12 @@ func (suite *TaskHandlerTestSuite) TestGetTask_Success() {
 	// Assert
 	assert.Equal(suite.T(), http.StatusOK, w.Code)
 
-	var response handlers.TaskResponse
+	var response dto.TaskResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), taskID, response.ID)
 	assert.Equal(suite.T(), "Test Task", response.Title)
-	assert.Equal(suite.T(), models.StatusInProgress, response.Status)
+	assert.Equal(suite.T(), types.StatusInProgress, response.Status)
 }
 
 func (suite *TaskHandlerTestSuite) TestGetTask_NotFound() {
@@ -236,7 +238,7 @@ func (suite *TaskHandlerTestSuite) TestGetTask_NotFound() {
 	// Assert
 	assert.Equal(suite.T(), http.StatusNotFound, w.Code)
 
-	var response handlers.ErrorResponse
+	var response dto.ErrorResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), "Task not found", response.Error)
@@ -252,7 +254,7 @@ func (suite *TaskHandlerTestSuite) TestGetTask_InvalidID() {
 	// Assert
 	assert.Equal(suite.T(), http.StatusBadRequest, w.Code)
 
-	var response handlers.ErrorResponse
+	var response dto.ErrorResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), "Invalid task ID", response.Error)
@@ -274,7 +276,7 @@ func (suite *TaskHandlerTestSuite) TestGetTask_DatabaseError() {
 	// Assert
 	assert.Equal(suite.T(), http.StatusInternalServerError, w.Code)
 
-	var response handlers.ErrorResponse
+	var response dto.ErrorResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), "Failed to get task", response.Error)
@@ -287,7 +289,7 @@ func (suite *TaskHandlerTestSuite) TestGetTasks_Success() {
 			ID:          uuid.New(),
 			Title:       "Task 1",
 			Description: "Description 1",
-			Status:      models.StatusPending,
+			Status:      types.StatusPending,
 			Assignee:    "user1@example.com",
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
@@ -296,7 +298,7 @@ func (suite *TaskHandlerTestSuite) TestGetTasks_Success() {
 			ID:          uuid.New(),
 			Title:       "Task 2",
 			Description: "Description 2",
-			Status:      models.StatusCompleted,
+			Status:      types.StatusCompleted,
 			Assignee:    "user2@example.com",
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
@@ -316,7 +318,7 @@ func (suite *TaskHandlerTestSuite) TestGetTasks_Success() {
 	// Assert
 	assert.Equal(suite.T(), http.StatusOK, w.Code)
 
-	var response handlers.TaskListResponse
+	var response dto.TaskListResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), 2, len(response.Tasks))
@@ -332,15 +334,15 @@ func (suite *TaskHandlerTestSuite) TestUpdateTask_Success() {
 		ID:          taskID,
 		Title:       "Original Title",
 		Description: "Original Description",
-		Status:      models.StatusPending,
+		Status:      types.StatusPending,
 		Assignee:    "original@example.com",
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
 
-	updateReq := handlers.UpdateTaskRequest{
+	updateReq := dto.UpdateTaskRequest{
 		Title:  stringPtr("Updated Title"),
-		Status: statusPtr(models.StatusCompleted),
+		Status: statusPtr(types.StatusCompleted),
 	}
 
 	suite.mockRepo.GetByIDFunc = func(ctx context.Context, id uuid.UUID) (*models.Task, error) {
@@ -366,11 +368,11 @@ func (suite *TaskHandlerTestSuite) TestUpdateTask_Success() {
 	// Assert
 	assert.Equal(suite.T(), http.StatusOK, w.Code)
 
-	var response handlers.TaskResponse
+	var response dto.TaskResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), "Updated Title", response.Title)
-	assert.Equal(suite.T(), models.StatusCompleted, response.Status)
+	assert.Equal(suite.T(), types.StatusCompleted, response.Status)
 }
 
 func (suite *TaskHandlerTestSuite) TestDeleteTask_Success() {
@@ -406,7 +408,7 @@ func (suite *TaskHandlerTestSuite) TestDeleteTask_NotFound() {
 	// Assert
 	assert.Equal(suite.T(), http.StatusNotFound, w.Code)
 
-	var response handlers.ErrorResponse
+	var response dto.ErrorResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), "Task not found", response.Error)
@@ -422,7 +424,7 @@ func (suite *TaskHandlerTestSuite) TestDeleteTask_InvalidID() {
 	// Assert
 	assert.Equal(suite.T(), http.StatusBadRequest, w.Code)
 
-	var response handlers.ErrorResponse
+	var response dto.ErrorResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), "Invalid task ID", response.Error)
@@ -444,7 +446,7 @@ func (suite *TaskHandlerTestSuite) TestDeleteTask_DatabaseError() {
 	// Assert
 	assert.Equal(suite.T(), http.StatusInternalServerError, w.Code)
 
-	var response handlers.ErrorResponse
+	var response dto.ErrorResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), "Failed to delete task", response.Error)
@@ -453,7 +455,7 @@ func (suite *TaskHandlerTestSuite) TestDeleteTask_DatabaseError() {
 func (suite *TaskHandlerTestSuite) TestUpdateTask_NotFound() {
 	// Setup
 	taskID := uuid.New()
-	updateReq := handlers.UpdateTaskRequest{
+	updateReq := dto.UpdateTaskRequest{
 		Title: stringPtr("Updated Title"),
 	}
 
@@ -472,7 +474,7 @@ func (suite *TaskHandlerTestSuite) TestUpdateTask_NotFound() {
 	// Assert
 	assert.Equal(suite.T(), http.StatusNotFound, w.Code)
 
-	var response handlers.ErrorResponse
+	var response dto.ErrorResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), "Task not found", response.Error)
@@ -480,7 +482,7 @@ func (suite *TaskHandlerTestSuite) TestUpdateTask_NotFound() {
 
 func (suite *TaskHandlerTestSuite) TestUpdateTask_InvalidID() {
 	// Setup
-	updateReq := handlers.UpdateTaskRequest{
+	updateReq := dto.UpdateTaskRequest{
 		Title: stringPtr("Updated Title"),
 	}
 
@@ -495,7 +497,7 @@ func (suite *TaskHandlerTestSuite) TestUpdateTask_InvalidID() {
 	// Assert
 	assert.Equal(suite.T(), http.StatusBadRequest, w.Code)
 
-	var response handlers.ErrorResponse
+	var response dto.ErrorResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), "Invalid task ID", response.Error)
@@ -525,13 +527,13 @@ func (suite *TaskHandlerTestSuite) TestUpdateTask_DatabaseError() {
 		ID:          taskID,
 		Title:       "Original Title",
 		Description: "Original Description",
-		Status:      models.StatusPending,
+		Status:      types.StatusPending,
 		Assignee:    "original@example.com",
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
 
-	updateReq := handlers.UpdateTaskRequest{
+	updateReq := dto.UpdateTaskRequest{
 		Title: stringPtr("Updated Title"),
 	}
 
@@ -582,10 +584,10 @@ func (suite *TaskHandlerTestSuite) TestGetTasks_InvalidLimit() {
 
 func (suite *TaskHandlerTestSuite) TestCreateTask_DatabaseError() {
 	// Setup
-	reqBody := handlers.CreateTaskRequest{
+	reqBody := dto.CreateTaskRequest{
 		Title:       "Test Task",
 		Description: "Test Description",
-		Status:      models.StatusPending,
+		Status:      types.StatusPending,
 		Assignee:    "test@example.com",
 	}
 
@@ -612,7 +614,7 @@ func (suite *TaskHandlerTestSuite) TestGetTasks_WithFilters() {
 			ID:          uuid.New(),
 			Title:       "Task 1",
 			Description: "Description 1",
-			Status:      models.StatusPending,
+			Status:      types.StatusPending,
 			Assignee:    "user1@example.com",
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
@@ -636,7 +638,7 @@ func (suite *TaskHandlerTestSuite) TestGetTasks_WithFilters() {
 	// Assert
 	assert.Equal(suite.T(), http.StatusOK, w.Code)
 
-	var response handlers.TaskListResponse
+	var response dto.TaskListResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), 1, len(response.Tasks))

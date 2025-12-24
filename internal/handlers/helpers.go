@@ -1,14 +1,16 @@
 package handlers
 
 import (
+	"taheri24.ir/graph1/internal/dto"
 	"taheri24.ir/graph1/internal/models"
+	"taheri24.ir/graph1/internal/types"
 )
 
-// tasksToResponses converts models.Task to TaskResponse
-func tasksToResponses(tasks []models.Task) []TaskResponse {
-	responses := make([]TaskResponse, len(tasks))
+// tasksToResponses converts models.Task to dto.TaskResponse
+func tasksToResponses(tasks []models.Task) []dto.TaskResponse {
+	responses := make([]dto.TaskResponse, len(tasks))
 	for i, task := range tasks {
-		responses[i] = TaskResponse{
+		responses[i] = dto.TaskResponse{
 			ID:          task.ID,
 			Title:       task.Title,
 			Description: task.Description,
@@ -22,7 +24,7 @@ func tasksToResponses(tasks []models.Task) []TaskResponse {
 }
 
 // filterTasksByStatus filters tasks by status
-func filterTasksByStatus(tasks []models.Task, status models.TaskStatus) []models.Task {
+func filterTasksByStatus(tasks []models.Task, status types.TaskStatus) []models.Task {
 	var filtered []models.Task
 	for _, task := range tasks {
 		if task.Status == status {

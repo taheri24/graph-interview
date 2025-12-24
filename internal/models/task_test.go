@@ -9,6 +9,7 @@ import (
 
 	"taheri24.ir/graph1/internal/cache"
 	"taheri24.ir/graph1/internal/models"
+	"taheri24.ir/graph1/internal/types"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
@@ -25,9 +26,9 @@ func TestTaskTableName(t *testing.T) {
 }
 
 func TestTaskStatusConstants(t *testing.T) {
-	assert.Equal(t, models.TaskStatus("pending"), models.StatusPending)
-	assert.Equal(t, models.TaskStatus("in_progress"), models.StatusInProgress)
-	assert.Equal(t, models.TaskStatus("completed"), models.StatusCompleted)
+	assert.Equal(t, types.TaskStatus("pending"), types.StatusPending)
+	assert.Equal(t, types.TaskStatus("in_progress"), types.StatusInProgress)
+	assert.Equal(t, types.TaskStatus("completed"), types.StatusCompleted)
 }
 
 func TestTaskModel(t *testing.T) {
@@ -38,7 +39,7 @@ func TestTaskModel(t *testing.T) {
 		ID:          id,
 		Title:       "Test Title",
 		Description: "Test Description",
-		Status:      models.StatusPending,
+		Status:      types.StatusPending,
 		Assignee:    "test@example.com",
 		CreatedAt:   now,
 		UpdatedAt:   now,
@@ -47,7 +48,7 @@ func TestTaskModel(t *testing.T) {
 	assert.Equal(t, id, task.ID)
 	assert.Equal(t, "Test Title", task.Title)
 	assert.Equal(t, "Test Description", task.Description)
-	assert.Equal(t, models.StatusPending, task.Status)
+	assert.Equal(t, types.StatusPending, task.Status)
 	assert.Equal(t, "test@example.com", task.Assignee)
 	assert.Equal(t, now, task.CreatedAt)
 	assert.Equal(t, now, task.UpdatedAt)
@@ -57,7 +58,7 @@ func TestTaskModelWithDefaultValues(t *testing.T) {
 	task := models.Task{
 		ID:        uuid.New(),
 		Title:     "Test Task",
-		Status:    models.StatusPending,
+		Status:    types.StatusPending,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -69,10 +70,10 @@ func TestTaskModelWithDefaultValues(t *testing.T) {
 
 func TestTaskStatusValidation(t *testing.T) {
 	// Test valid status values
-	validStatuses := []models.TaskStatus{
-		models.StatusPending,
-		models.StatusInProgress,
-		models.StatusCompleted,
+	validStatuses := []types.TaskStatus{
+		types.StatusPending,
+		types.StatusInProgress,
+		types.StatusCompleted,
 	}
 
 	for _, status := range validStatuses {
@@ -80,8 +81,8 @@ func TestTaskStatusValidation(t *testing.T) {
 	}
 
 	// Test custom status
-	customStatus := models.TaskStatus("custom")
-	assert.Equal(t, models.TaskStatus("custom"), customStatus)
+	customStatus := types.TaskStatus("custom")
+	assert.Equal(t, types.TaskStatus("custom"), customStatus)
 }
 
 func TestTaskID(t *testing.T) {
@@ -114,7 +115,7 @@ func TestTaskBeforeCreateHook(t *testing.T) {
 	task := models.Task{
 		Title:       "Test Task",
 		Description: "Test Description",
-		Status:      models.StatusPending,
+		Status:      types.StatusPending,
 		Assignee:    "test@example.com",
 	}
 	assert.Equal(t, uuid.Nil, task.ID)
@@ -133,7 +134,7 @@ func TestTaskBeforeCreateHook(t *testing.T) {
 		ID:          existingID,
 		Title:       "Test Task 2",
 		Description: "Test Description 2",
-		Status:      models.StatusInProgress,
+		Status:      types.StatusInProgress,
 		Assignee:    "test2@example.com",
 	}
 
@@ -154,7 +155,7 @@ func TestTaskCacheOperations(t *testing.T) {
 		ID:          uuid.New(),
 		Title:       "Task 1",
 		Description: "Description 1",
-		Status:      models.StatusPending,
+		Status:      types.StatusPending,
 		Assignee:    "user1@example.com",
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -164,7 +165,7 @@ func TestTaskCacheOperations(t *testing.T) {
 		ID:          uuid.New(),
 		Title:       "Task 2",
 		Description: "Description 2",
-		Status:      models.StatusInProgress,
+		Status:      types.StatusInProgress,
 		Assignee:    "user2@example.com",
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -224,7 +225,7 @@ func TestTaskCacheConcurrentAccess(t *testing.T) {
 				task := models.Task{
 					ID:        taskID,
 					Title:     fmt.Sprintf("Task-%d-%d", id, j),
-					Status:    models.StatusPending,
+					Status:    types.StatusPending,
 					CreatedAt: time.Now(),
 					UpdatedAt: time.Now(),
 				}
@@ -257,7 +258,7 @@ func TestTaskSerialization(t *testing.T) {
 		ID:          uuid.New(),
 		Title:       "Test Task",
 		Description: "Test Description",
-		Status:      models.StatusInProgress,
+		Status:      types.StatusInProgress,
 		Assignee:    "test@example.com",
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -291,7 +292,7 @@ func TestTaskCacheWithEmptyFields(t *testing.T) {
 	task := models.Task{
 		ID:        uuid.New(),
 		Title:     "Minimal Task",
-		Status:    models.StatusPending,
+		Status:    types.StatusPending,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 		// Description and Assignee are empty strings
@@ -308,15 +309,15 @@ func TestTaskCacheWithEmptyFields(t *testing.T) {
 	// Verify empty fields are handled correctly
 	assert.Equal(t, "", retrievedTask.Description)
 	assert.Equal(t, "", retrievedTask.Assignee)
-	assert.Equal(t, models.StatusPending, retrievedTask.Status)
+	assert.Equal(t, types.StatusPending, retrievedTask.Status)
 }
 
 func TestTaskCacheTypeAssertion(t *testing.T) {
 	cache := cache.NewInMemoryCacheImpl[models.Task]()
 
 	// Test that type assertion works correctly in GetAll
-	task1 := models.Task{ID: uuid.New(), Title: "Task 1", Status: models.StatusPending, CreatedAt: time.Now(), UpdatedAt: time.Now()}
-	task2 := models.Task{ID: uuid.New(), Title: "Task 2", Status: models.StatusCompleted, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	task1 := models.Task{ID: uuid.New(), Title: "Task 1", Status: types.StatusPending, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	task2 := models.Task{ID: uuid.New(), Title: "Task 2", Status: types.StatusCompleted, CreatedAt: time.Now(), UpdatedAt: time.Now()}
 
 	// Set individual tasks
 	cache.Set(task1.ID.String(), task1)

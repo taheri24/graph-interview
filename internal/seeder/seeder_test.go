@@ -5,6 +5,7 @@ import (
 
 	"taheri24.ir/graph1/internal/database"
 	"taheri24.ir/graph1/internal/models"
+	"taheri24.ir/graph1/internal/types"
 	"taheri24.ir/graph1/pkg/config"
 
 	"github.com/stretchr/testify/assert"
@@ -33,25 +34,25 @@ func TestSeed(t *testing.T) {
 	// Check first task
 	assert.Equal(t, "Complete project setup", tasks[0].Title)
 	assert.Equal(t, "Set up the initial project structure and dependencies", tasks[0].Description)
-	assert.Equal(t, models.StatusCompleted, tasks[0].Status)
+	assert.Equal(t, types.StatusCompleted, tasks[0].Status)
 	assert.Equal(t, "developer", tasks[0].Assignee)
 
 	// Check second task
 	assert.Equal(t, "Implement user authentication", tasks[1].Title)
 	assert.Equal(t, "Add user login and registration functionality", tasks[1].Description)
-	assert.Equal(t, models.StatusInProgress, tasks[1].Status)
+	assert.Equal(t, types.StatusInProgress, tasks[1].Status)
 	assert.Equal(t, "developer", tasks[1].Assignee)
 
 	// Check third task
 	assert.Equal(t, "Write unit tests", tasks[2].Title)
 	assert.Equal(t, "Create comprehensive unit tests for all modules", tasks[2].Description)
-	assert.Equal(t, models.StatusPending, tasks[2].Status)
+	assert.Equal(t, types.StatusPending, tasks[2].Status)
 	assert.Equal(t, "tester", tasks[2].Assignee)
 
 	// Check fourth task
 	assert.Equal(t, "Deploy to production", tasks[3].Title)
 	assert.Equal(t, "Deploy the application to the production environment", tasks[3].Description)
-	assert.Equal(t, models.StatusPending, tasks[3].Status)
+	assert.Equal(t, types.StatusPending, tasks[3].Status)
 	assert.Equal(t, "devops", tasks[3].Assignee)
 }
 
@@ -145,7 +146,7 @@ func TestSeedWithExistingData(t *testing.T) {
 	existingTask := models.Task{
 		Title:       "Existing Task",
 		Description: "This task already exists",
-		Status:      models.StatusCompleted,
+		Status:      types.StatusCompleted,
 		Assignee:    "admin",
 	}
 	err = db.DB.Create(&existingTask).Error
@@ -164,7 +165,7 @@ func TestSeedWithExistingData(t *testing.T) {
 	err = db.DB.Where("title = ?", "Existing Task").First(&found).Error
 	assert.NoError(t, err)
 	assert.Equal(t, "Existing Task", found.Title)
-	assert.Equal(t, models.StatusCompleted, found.Status)
+	assert.Equal(t, types.StatusCompleted, found.Status)
 }
 
 func TestSeedSampleDataContent(t *testing.T) {
@@ -183,31 +184,31 @@ func TestSeedSampleDataContent(t *testing.T) {
 	expectedTasks := []struct {
 		title       string
 		description string
-		status      models.TaskStatus
+		status      types.TaskStatus
 		assignee    string
 	}{
 		{
 			title:       "Complete project setup",
 			description: "Set up the initial project structure and dependencies",
-			status:      models.StatusCompleted,
+			status:      types.StatusCompleted,
 			assignee:    "developer",
 		},
 		{
 			title:       "Implement user authentication",
 			description: "Add user login and registration functionality",
-			status:      models.StatusInProgress,
+			status:      types.StatusInProgress,
 			assignee:    "developer",
 		},
 		{
 			title:       "Write unit tests",
 			description: "Create comprehensive unit tests for all modules",
-			status:      models.StatusPending,
+			status:      types.StatusPending,
 			assignee:    "tester",
 		},
 		{
 			title:       "Deploy to production",
 			description: "Deploy the application to the production environment",
-			status:      models.StatusPending,
+			status:      types.StatusPending,
 			assignee:    "devops",
 		},
 	}

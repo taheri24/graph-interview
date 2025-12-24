@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"taheri24.ir/graph1/internal/models"
+	"taheri24.ir/graph1/internal/types"
 )
 
 func TestTasksToResponses(t *testing.T) {
@@ -17,7 +18,7 @@ func TestTasksToResponses(t *testing.T) {
 			ID:          uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"),
 			Title:       "Test Task 1",
 			Description: "Test Description 1",
-			Status:      models.StatusPending,
+			Status:      types.StatusPending,
 			Assignee:    "Test Assignee 1",
 			CreatedAt:   baseTime,
 			UpdatedAt:   baseTime.Add(time.Hour),
@@ -26,7 +27,7 @@ func TestTasksToResponses(t *testing.T) {
 			ID:          uuid.MustParse("550e8400-e29b-41d4-a716-446655440001"),
 			Title:       "Test Task 2",
 			Description: "Test Description 2",
-			Status:      models.StatusInProgress,
+			Status:      types.StatusInProgress,
 			Assignee:    "Test Assignee 2",
 			CreatedAt:   baseTime.Add(2 * time.Hour),
 			UpdatedAt:   baseTime.Add(3 * time.Hour),
@@ -42,7 +43,7 @@ func TestTasksToResponses(t *testing.T) {
 	assert.Equal(t, tasks[0].ID, responses[0].ID)
 	assert.Equal(t, "Test Task 1", responses[0].Title)
 	assert.Equal(t, "Test Description 1", responses[0].Description)
-	assert.Equal(t, models.StatusPending, responses[0].Status)
+	assert.Equal(t, types.StatusPending, responses[0].Status)
 	assert.Equal(t, "Test Assignee 1", responses[0].Assignee)
 	assert.Equal(t, "2023-01-01T12:00:00Z", responses[0].CreatedAt)
 	assert.Equal(t, "2023-01-01T13:00:00Z", responses[0].UpdatedAt)
@@ -51,7 +52,7 @@ func TestTasksToResponses(t *testing.T) {
 	assert.Equal(t, tasks[1].ID, responses[1].ID)
 	assert.Equal(t, "Test Task 2", responses[1].Title)
 	assert.Equal(t, "Test Description 2", responses[1].Description)
-	assert.Equal(t, models.StatusInProgress, responses[1].Status)
+	assert.Equal(t, types.StatusInProgress, responses[1].Status)
 	assert.Equal(t, "Test Assignee 2", responses[1].Assignee)
 	assert.Equal(t, "2023-01-01T14:00:00Z", responses[1].CreatedAt)
 	assert.Equal(t, "2023-01-01T15:00:00Z", responses[1].UpdatedAt)
@@ -69,53 +70,53 @@ func TestFilterTasksByStatus(t *testing.T) {
 		{
 			ID:       uuid.New(),
 			Title:    "Pending Task",
-			Status:   models.StatusPending,
+			Status:   types.StatusPending,
 			Assignee: "User1",
 		},
 		{
 			ID:       uuid.New(),
 			Title:    "In Progress Task",
-			Status:   models.StatusInProgress,
+			Status:   types.StatusInProgress,
 			Assignee: "User2",
 		},
 		{
 			ID:       uuid.New(),
 			Title:    "Completed Task",
-			Status:   models.StatusCompleted,
+			Status:   types.StatusCompleted,
 			Assignee: "User3",
 		},
 		{
 			ID:       uuid.New(),
 			Title:    "Another Pending Task",
-			Status:   models.StatusPending,
+			Status:   types.StatusPending,
 			Assignee: "User4",
 		},
 	}
 
 	// Test filtering by pending status
-	pendingTasks := filterTasksByStatus(tasks, models.StatusPending)
+	pendingTasks := filterTasksByStatus(tasks, types.StatusPending)
 	assert.Len(t, pendingTasks, 2)
 	assert.Equal(t, "Pending Task", pendingTasks[0].Title)
 	assert.Equal(t, "Another Pending Task", pendingTasks[1].Title)
 
 	// Test filtering by in progress status
-	inProgressTasks := filterTasksByStatus(tasks, models.StatusInProgress)
+	inProgressTasks := filterTasksByStatus(tasks, types.StatusInProgress)
 	assert.Len(t, inProgressTasks, 1)
 	assert.Equal(t, "In Progress Task", inProgressTasks[0].Title)
 
 	// Test filtering by completed status
-	completedTasks := filterTasksByStatus(tasks, models.StatusCompleted)
+	completedTasks := filterTasksByStatus(tasks, types.StatusCompleted)
 	assert.Len(t, completedTasks, 1)
 	assert.Equal(t, "Completed Task", completedTasks[0].Title)
 
 	// Test filtering by status that doesn't exist
-	cancelledTasks := filterTasksByStatus(tasks, models.TaskStatus("cancelled"))
+	cancelledTasks := filterTasksByStatus(tasks, types.TaskStatus("cancelled"))
 	assert.Len(t, cancelledTasks, 0)
 }
 
 func TestFilterTasksByStatus_EmptySlice(t *testing.T) {
 	tasks := []models.Task{}
-	filtered := filterTasksByStatus(tasks, models.StatusPending)
+	filtered := filterTasksByStatus(tasks, types.StatusPending)
 
 	assert.Len(t, filtered, 0)
 }
@@ -125,25 +126,25 @@ func TestFilterTasksByAssignee(t *testing.T) {
 		{
 			ID:       uuid.New(),
 			Title:    "Task 1",
-			Status:   models.StatusPending,
+			Status:   types.StatusPending,
 			Assignee: "Alice",
 		},
 		{
 			ID:       uuid.New(),
 			Title:    "Task 2",
-			Status:   models.StatusInProgress,
+			Status:   types.StatusInProgress,
 			Assignee: "Bob",
 		},
 		{
 			ID:       uuid.New(),
 			Title:    "Task 3",
-			Status:   models.StatusCompleted,
+			Status:   types.StatusCompleted,
 			Assignee: "Alice",
 		},
 		{
 			ID:       uuid.New(),
 			Title:    "Task 4",
-			Status:   models.StatusPending,
+			Status:   types.StatusPending,
 			Assignee: "Charlie",
 		},
 	}
@@ -181,19 +182,19 @@ func TestFilterTasksByAssignee_EmptyAssignee(t *testing.T) {
 		{
 			ID:       uuid.New(),
 			Title:    "Task 1",
-			Status:   models.StatusPending,
+			Status:   types.StatusPending,
 			Assignee: "Alice",
 		},
 		{
 			ID:       uuid.New(),
 			Title:    "Task 2",
-			Status:   models.StatusInProgress,
+			Status:   types.StatusInProgress,
 			Assignee: "",
 		},
 		{
 			ID:       uuid.New(),
 			Title:    "Task 3",
-			Status:   models.StatusCompleted,
+			Status:   types.StatusCompleted,
 			Assignee: "",
 		},
 	}

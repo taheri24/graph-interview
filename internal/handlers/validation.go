@@ -3,7 +3,8 @@ package handlers
 import (
 	"strings"
 
-	"taheri24.ir/graph1/internal/models"
+	"taheri24.ir/graph1/internal/dto"
+	"taheri24.ir/graph1/internal/types"
 )
 
 // ValidationError represents a validation error
@@ -13,7 +14,7 @@ type ValidationError struct {
 }
 
 // ValidateCreateTaskRequest validates a CreateTaskRequest
-func ValidateCreateTaskRequest(req CreateTaskRequest) []ValidationError {
+func ValidateCreateTaskRequest(req dto.CreateTaskRequest) []ValidationError {
 	var errors []ValidationError
 
 	// Validate Title
@@ -44,7 +45,7 @@ func ValidateCreateTaskRequest(req CreateTaskRequest) []ValidationError {
 }
 
 // ValidateUpdateTaskRequest validates an UpdateTaskRequest
-func ValidateUpdateTaskRequest(req UpdateTaskRequest) []ValidationError {
+func ValidateUpdateTaskRequest(req dto.UpdateTaskRequest) []ValidationError {
 	var errors []ValidationError
 
 	// Validate Title
@@ -78,9 +79,9 @@ func ValidateUpdateTaskRequest(req UpdateTaskRequest) []ValidationError {
 }
 
 // isValidTaskStatus checks if the status is valid
-func isValidTaskStatus(status models.TaskStatus) bool {
+func isValidTaskStatus(status types.TaskStatus) bool {
 	switch status {
-	case models.StatusPending, models.StatusInProgress, models.StatusCompleted:
+	case types.StatusPending, types.StatusInProgress, types.StatusCompleted:
 		return true
 	default:
 		return false

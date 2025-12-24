@@ -5,30 +5,31 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"taheri24.ir/graph1/internal/models"
+	"taheri24.ir/graph1/internal/dto"
+	"taheri24.ir/graph1/internal/types"
 )
 
 func TestValidateCreateTaskRequest(t *testing.T) {
 	tests := []struct {
 		name     string
-		req      CreateTaskRequest
+		req      dto.CreateTaskRequest
 		expected []ValidationError
 	}{
 		{
 			name: "valid request",
-			req: CreateTaskRequest{
+			req: dto.CreateTaskRequest{
 				Title:       "Test Task",
 				Description: "Test Description",
-				Status:      models.StatusPending,
+				Status:      types.StatusPending,
 				Assignee:    "test@example.com",
 			},
 			expected: nil,
 		},
 		{
 			name: "missing title",
-			req: CreateTaskRequest{
+			req: dto.CreateTaskRequest{
 				Description: "Test Description",
-				Status:      models.StatusPending,
+				Status:      types.StatusPending,
 				Assignee:    "test@example.com",
 			},
 			expected: []ValidationError{
@@ -37,10 +38,10 @@ func TestValidateCreateTaskRequest(t *testing.T) {
 		},
 		{
 			name: "empty title",
-			req: CreateTaskRequest{
+			req: dto.CreateTaskRequest{
 				Title:       "",
 				Description: "Test Description",
-				Status:      models.StatusPending,
+				Status:      types.StatusPending,
 				Assignee:    "test@example.com",
 			},
 			expected: []ValidationError{
@@ -49,10 +50,10 @@ func TestValidateCreateTaskRequest(t *testing.T) {
 		},
 		{
 			name: "title too long",
-			req: CreateTaskRequest{
+			req: dto.CreateTaskRequest{
 				Title:       string(make([]byte, 201)),
 				Description: "Test Description",
-				Status:      models.StatusPending,
+				Status:      types.StatusPending,
 				Assignee:    "test@example.com",
 			},
 			expected: []ValidationError{
@@ -61,10 +62,10 @@ func TestValidateCreateTaskRequest(t *testing.T) {
 		},
 		{
 			name: "description too long",
-			req: CreateTaskRequest{
+			req: dto.CreateTaskRequest{
 				Title:       "Test Task",
 				Description: string(make([]byte, 1001)),
-				Status:      models.StatusPending,
+				Status:      types.StatusPending,
 				Assignee:    "test@example.com",
 			},
 			expected: []ValidationError{
@@ -73,7 +74,7 @@ func TestValidateCreateTaskRequest(t *testing.T) {
 		},
 		{
 			name: "invalid status",
-			req: CreateTaskRequest{
+			req: dto.CreateTaskRequest{
 				Title:       "Test Task",
 				Description: "Test Description",
 				Status:      "invalid",
@@ -85,10 +86,10 @@ func TestValidateCreateTaskRequest(t *testing.T) {
 		},
 		{
 			name: "assignee too long",
-			req: CreateTaskRequest{
+			req: dto.CreateTaskRequest{
 				Title:       "Test Task",
 				Description: "Test Description",
-				Status:      models.StatusPending,
+				Status:      types.StatusPending,
 				Assignee:    string(make([]byte, 101)),
 			},
 			expected: []ValidationError{
@@ -97,7 +98,7 @@ func TestValidateCreateTaskRequest(t *testing.T) {
 		},
 		{
 			name: "multiple errors",
-			req: CreateTaskRequest{
+			req: dto.CreateTaskRequest{
 				Title:       "",
 				Description: string(make([]byte, 1001)),
 				Status:      "invalid",
@@ -123,24 +124,24 @@ func TestValidateCreateTaskRequest(t *testing.T) {
 func TestValidateUpdateTaskRequest(t *testing.T) {
 	tests := []struct {
 		name     string
-		req      UpdateTaskRequest
+		req      dto.UpdateTaskRequest
 		expected []ValidationError
 	}{
 		{
 			name:     "valid request with no updates",
-			req:      UpdateTaskRequest{},
+			req:      dto.UpdateTaskRequest{},
 			expected: nil,
 		},
 		{
 			name: "valid title update",
-			req: UpdateTaskRequest{
+			req: dto.UpdateTaskRequest{
 				Title: stringPtr("Updated Title"),
 			},
 			expected: nil,
 		},
 		{
 			name: "empty title update",
-			req: UpdateTaskRequest{
+			req: dto.UpdateTaskRequest{
 				Title: stringPtr(""),
 			},
 			expected: []ValidationError{
@@ -149,7 +150,7 @@ func TestValidateUpdateTaskRequest(t *testing.T) {
 		},
 		{
 			name: "title too long",
-			req: UpdateTaskRequest{
+			req: dto.UpdateTaskRequest{
 				Title: stringPtr(string(make([]byte, 201))),
 			},
 			expected: []ValidationError{
@@ -158,7 +159,7 @@ func TestValidateUpdateTaskRequest(t *testing.T) {
 		},
 		{
 			name: "description too long",
-			req: UpdateTaskRequest{
+			req: dto.UpdateTaskRequest{
 				Description: stringPtr(string(make([]byte, 1001))),
 			},
 			expected: []ValidationError{
@@ -167,7 +168,7 @@ func TestValidateUpdateTaskRequest(t *testing.T) {
 		},
 		{
 			name: "invalid status",
-			req: UpdateTaskRequest{
+			req: dto.UpdateTaskRequest{
 				Status: statusPtr("invalid"),
 			},
 			expected: []ValidationError{
@@ -176,7 +177,7 @@ func TestValidateUpdateTaskRequest(t *testing.T) {
 		},
 		{
 			name: "assignee too long",
-			req: UpdateTaskRequest{
+			req: dto.UpdateTaskRequest{
 				Assignee: stringPtr(string(make([]byte, 101))),
 			},
 			expected: []ValidationError{
@@ -185,7 +186,7 @@ func TestValidateUpdateTaskRequest(t *testing.T) {
 		},
 		{
 			name: "multiple errors",
-			req: UpdateTaskRequest{
+			req: dto.UpdateTaskRequest{
 				Title:       stringPtr(""),
 				Description: stringPtr(string(make([]byte, 1001))),
 				Status:      statusPtr("invalid"),
@@ -213,6 +214,6 @@ func stringPtr(s string) *string {
 	return &s
 }
 
-func statusPtr(s models.TaskStatus) *models.TaskStatus {
+func statusPtr(s types.TaskStatus) *types.TaskStatus {
 	return &s
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"taheri24.ir/graph1/internal/models"
+	"taheri24.ir/graph1/internal/types"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -47,7 +48,7 @@ func TestNoOpCacheImplSet(t *testing.T) {
 		ID:          uuid.New(),
 		Title:       "Test Task",
 		Description: "Test Description",
-		Status:      models.StatusPending,
+		Status:      types.StatusPending,
 		Assignee:    "test@example.com",
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -123,7 +124,7 @@ func TestNoOpCacheImplConcurrentAccess(t *testing.T) {
 			task := models.Task{
 				ID:        uuid.New(),
 				Title:     "Concurrent Task",
-				Status:    models.StatusPending,
+				Status:    types.StatusPending,
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			}

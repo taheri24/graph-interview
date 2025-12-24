@@ -9,6 +9,7 @@ import (
 
 	"taheri24.ir/graph1/internal/database"
 	"taheri24.ir/graph1/internal/models"
+	"taheri24.ir/graph1/internal/types"
 	"taheri24.ir/graph1/pkg/config"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -43,7 +44,7 @@ func TestCreateTaskIntegration(t *testing.T) {
 	task := &models.Task{
 		Title:       "Integration Test Task",
 		Description: "Testing create operation",
-		Status:      models.StatusPending,
+		Status:      types.StatusPending,
 		Assignee:    "test@example.com",
 	}
 
@@ -76,7 +77,7 @@ func TestUpdateTaskIntegration(t *testing.T) {
 	originalTask := &models.Task{
 		Title:       "Original Title",
 		Description: "Original Description",
-		Status:      models.StatusPending,
+		Status:      types.StatusPending,
 		Assignee:    "original@test.com",
 	}
 	err = db.Create(context.TODO(), originalTask)
@@ -89,7 +90,7 @@ func TestUpdateTaskIntegration(t *testing.T) {
 
 	// Update the task
 	originalTask.Title = "Updated Title"
-	originalTask.Status = models.StatusCompleted
+	originalTask.Status = types.StatusCompleted
 	originalTask.Assignee = "updated@test.com"
 
 	err = db.Update(context.TODO(), originalTask)
@@ -100,7 +101,7 @@ func TestUpdateTaskIntegration(t *testing.T) {
 	err = db.DB.First(&found, "id = ?", originalTask.ID).Error
 	assert.NoError(t, err)
 	assert.Equal(t, "Updated Title", found.Title)
-	assert.Equal(t, models.StatusCompleted, found.Status)
+	assert.Equal(t, types.StatusCompleted, found.Status)
 	assert.Equal(t, "updated@test.com", found.Assignee)
 	assert.Equal(t, "Original Description", found.Description) // Should remain unchanged
 	assert.True(t, found.UpdatedAt.After(originalUpdatedAt))
@@ -119,7 +120,7 @@ func TestDeleteTaskIntegration(t *testing.T) {
 	task := &models.Task{
 		Title:       "Task to Delete",
 		Description: "Will be deleted",
-		Status:      models.StatusPending,
+		Status:      types.StatusPending,
 		Assignee:    "delete@test.com",
 	}
 	err = db.Create(context.TODO(), task)
@@ -161,25 +162,25 @@ func TestGetAllTasksIntegration(t *testing.T) {
 		{
 			Title:       "Task 1",
 			Description: "First task",
-			Status:      models.StatusPending,
+			Status:      types.StatusPending,
 			Assignee:    "user1@test.com",
 		},
 		{
 			Title:       "Task 2",
 			Description: "Second task",
-			Status:      models.StatusInProgress,
+			Status:      types.StatusInProgress,
 			Assignee:    "user2@test.com",
 		},
 		{
 			Title:       "Task 3",
 			Description: "Third task",
-			Status:      models.StatusCompleted,
+			Status:      types.StatusCompleted,
 			Assignee:    "user1@test.com",
 		},
 		{
 			Title:       "Task 4",
 			Description: "Fourth task",
-			Status:      models.StatusPending,
+			Status:      types.StatusPending,
 			Assignee:    "user3@test.com",
 		},
 	}
@@ -212,7 +213,7 @@ func TestGetAllTasksIntegration(t *testing.T) {
 	assert.Equal(t, int64(2), total)
 	assert.Len(t, foundTasks, 2)
 	for _, task := range foundTasks {
-		assert.Equal(t, models.StatusPending, task.Status)
+		assert.Equal(t, types.StatusPending, task.Status)
 	}
 
 	// Test filtering by assignee
@@ -293,7 +294,7 @@ func (suite *DatabaseTestSuite) TestCreate() {
 		ID:          uuid.New(),
 		Title:       "Test Task",
 		Description: "Test Description",
-		Status:      models.StatusPending,
+		Status:      types.StatusPending,
 		Assignee:    "test@example.com",
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -312,7 +313,7 @@ func (suite *DatabaseTestSuite) TestCreateError() {
 		ID:          uuid.New(),
 		Title:       "Test Task",
 		Description: "Test Description",
-		Status:      models.StatusPending,
+		Status:      types.StatusPending,
 		Assignee:    "test@example.com",
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -363,7 +364,7 @@ func (suite *DatabaseTestSuite) TestUpdate() {
 		ID:          uuid.New(),
 		Title:       "Updated Task",
 		Description: "Updated Description",
-		Status:      models.StatusCompleted,
+		Status:      types.StatusCompleted,
 		Assignee:    "updated@example.com",
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -679,9 +680,9 @@ func TestDatabaseGetAllSelectError(t *testing.T) {
 
 // Test TaskStatus enum values
 func TestTaskStatus(t *testing.T) {
-	assert.Equal(t, models.TaskStatus("pending"), models.StatusPending)
-	assert.Equal(t, models.TaskStatus("in_progress"), models.StatusInProgress)
-	assert.Equal(t, models.TaskStatus("completed"), models.StatusCompleted)
+	assert.Equal(t, types.TaskStatus("pending"), types.StatusPending)
+	assert.Equal(t, types.TaskStatus("in_progress"), types.StatusInProgress)
+	assert.Equal(t, types.TaskStatus("completed"), types.StatusCompleted)
 }
 
 // Test Task model structure
@@ -690,7 +691,7 @@ func TestTaskModel(t *testing.T) {
 		ID:          uuid.New(),
 		Title:       "Test Title",
 		Description: "Test Description",
-		Status:      models.StatusPending,
+		Status:      types.StatusPending,
 		Assignee:    "test@example.com",
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -699,7 +700,7 @@ func TestTaskModel(t *testing.T) {
 	assert.NotEqual(t, uuid.Nil, task.ID)
 	assert.Equal(t, "Test Title", task.Title)
 	assert.Equal(t, "Test Description", task.Description)
-	assert.Equal(t, models.StatusPending, task.Status)
+	assert.Equal(t, types.StatusPending, task.Status)
 	assert.Equal(t, "test@example.com", task.Assignee)
 	assert.True(t, task.CreatedAt.Before(time.Now().Add(time.Second)))
 	assert.True(t, task.UpdatedAt.Before(time.Now().Add(time.Second)))

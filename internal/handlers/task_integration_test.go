@@ -11,8 +11,10 @@ import (
 
 	"taheri24.ir/graph1/internal/cache"
 	"taheri24.ir/graph1/internal/database"
+	"taheri24.ir/graph1/internal/dto"
 	"taheri24.ir/graph1/internal/handlers"
 	"taheri24.ir/graph1/internal/models"
+	"taheri24.ir/graph1/internal/types"
 	"taheri24.ir/graph1/pkg/config"
 
 	"github.com/gin-gonic/gin"
@@ -93,10 +95,10 @@ func (suite *IntegrationTestSuite) TestCreateAndGetTask() {
 	}
 
 	// Create a task
-	createReq := handlers.CreateTaskRequest{
+	createReq := dto.CreateTaskRequest{
 		Title:       "Integration Test Task",
 		Description: "Testing integration",
-		Status:      models.StatusPending,
+		Status:      types.StatusPending,
 		Assignee:    "integration@example.com",
 	}
 
@@ -108,12 +110,12 @@ func (suite *IntegrationTestSuite) TestCreateAndGetTask() {
 
 	assert.Equal(suite.T(), http.StatusCreated, w.Code)
 
-	var createResp handlers.TaskResponse
+	var createResp dto.TaskResponse
 	err := json.Unmarshal(w.Body.Bytes(), &createResp)
 	assert.NoError(suite.T(), err)
 	assert.NotEqual(suite.T(), uuid.Nil, createResp.ID)
 	assert.Equal(suite.T(), "Integration Test Task", createResp.Title)
-	assert.Equal(suite.T(), models.StatusPending, createResp.Status)
+	assert.Equal(suite.T(), types.StatusPending, createResp.Status)
 
 	// Get the task back
 	taskID := createResp.ID.String()
@@ -123,7 +125,7 @@ func (suite *IntegrationTestSuite) TestCreateAndGetTask() {
 
 	assert.Equal(suite.T(), http.StatusOK, w2.Code)
 
-	var getResp handlers.TaskResponse
+	var getResp dto.TaskResponse
 	err = json.Unmarshal(w2.Body.Bytes(), &getResp)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), createResp.ID, getResp.ID)
@@ -136,10 +138,10 @@ func (suite *IntegrationTestSuite) TestUpdateTask() {
 	}
 
 	// First create a task
-	createReq := handlers.CreateTaskRequest{
+	createReq := dto.CreateTaskRequest{
 		Title:       "Original Title",
 		Description: "Original Description",
-		Status:      models.StatusPending,
+		Status:      types.StatusPending,
 		Assignee:    "original@example.com",
 	}
 
@@ -149,14 +151,14 @@ func (suite *IntegrationTestSuite) TestUpdateTask() {
 	req.Header.Set("Content-Type", "application/json")
 	suite.router.ServeHTTP(w, req)
 
-	var createResp handlers.TaskResponse
+	var createResp dto.TaskResponse
 	json.Unmarshal(w.Body.Bytes(), &createResp)
 	taskID := createResp.ID.String()
 
 	// Update the task
-	updateReq := handlers.UpdateTaskRequest{
+	updateReq := dto.UpdateTaskRequest{
 		Title:  stringPtr("Updated Title"),
-		Status: statusPtr(models.StatusCompleted),
+		Status: statusPtr(types.StatusCompleted),
 	}
 
 	w2 := httptest.NewRecorder()
@@ -167,11 +169,11 @@ func (suite *IntegrationTestSuite) TestUpdateTask() {
 
 	assert.Equal(suite.T(), http.StatusOK, w2.Code)
 
-	var updateResp handlers.TaskResponse
+	var updateResp dto.TaskResponse
 	err := json.Unmarshal(w2.Body.Bytes(), &updateResp)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), "Updated Title", updateResp.Title)
-	assert.Equal(suite.T(), models.StatusCompleted, updateResp.Status)
+	assert.Equal(suite.T(), types.StatusCompleted, updateResp.Status)
 	assert.Equal(suite.T(), "original@example.com", updateResp.Assignee) // Should remain unchanged
 }
 
@@ -181,9 +183,9 @@ func (suite *IntegrationTestSuite) TestDeleteTask() {
 	}
 
 	// Create a task
-	createReq := handlers.CreateTaskRequest{
+	createReq := dto.CreateTaskRequest{
 		Title:  "Task to Delete",
-		Status: models.StatusPending,
+		Status: types.StatusPending,
 	}
 
 	w := httptest.NewRecorder()
@@ -192,7 +194,7 @@ func (suite *IntegrationTestSuite) TestDeleteTask() {
 	req.Header.Set("Content-Type", "application/json")
 	suite.router.ServeHTTP(w, req)
 
-	var createResp handlers.TaskResponse
+	var createResp dto.TaskResponse
 	json.Unmarshal(w.Body.Bytes(), &createResp)
 	taskID := createResp.ID.String()
 
@@ -217,10 +219,10 @@ func (suite *IntegrationTestSuite) TestGetTasksWithPagination() {
 	}
 
 	// Create multiple tasks
-	tasks := []handlers.CreateTaskRequest{
-		{Title: "Task 1", Status: models.StatusPending},
-		{Title: "Task 2", Status: models.StatusInProgress},
-		{Title: "Task 3", Status: models.StatusCompleted},
+	tasks := []dto.CreateTaskRequest{
+		{Title: "Task 1", Status: types.StatusPending},
+		{Title: "Task 2", Status: types.StatusInProgress},
+		{Title: "Task 3", Status: types.StatusCompleted},
 	}
 
 	for _, task := range tasks {
@@ -239,7 +241,7 @@ func (suite *IntegrationTestSuite) TestGetTasksWithPagination() {
 
 	assert.Equal(suite.T(), http.StatusOK, w.Code)
 
-	var resp handlers.TaskListResponse
+	var resp dto.TaskListResponse
 	err := json.Unmarshal(w.Body.Bytes(), &resp)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), 2, len(resp.Tasks))
@@ -254,10 +256,10 @@ func (suite *IntegrationTestSuite) TestGetTasksWithFiltering() {
 	}
 
 	// Create tasks with different statuses
-	tasks := []handlers.CreateTaskRequest{
-		{Title: "Pending Task", Status: models.StatusPending, Assignee: "user1@example.com"},
-		{Title: "In Progress Task", Status: models.StatusInProgress, Assignee: "user2@example.com"},
-		{Title: "Completed Task", Status: models.StatusCompleted, Assignee: "user1@example.com"},
+	tasks := []dto.CreateTaskRequest{
+		{Title: "Pending Task", Status: types.StatusPending, Assignee: "user1@example.com"},
+		{Title: "In Progress Task", Status: types.StatusInProgress, Assignee: "user2@example.com"},
+		{Title: "Completed Task", Status: types.StatusCompleted, Assignee: "user1@example.com"},
 	}
 
 	for _, task := range tasks {
@@ -276,7 +278,7 @@ func (suite *IntegrationTestSuite) TestGetTasksWithFiltering() {
 
 	assert.Equal(suite.T(), http.StatusOK, w.Code)
 
-	var resp handlers.TaskListResponse
+	var resp dto.TaskListResponse
 	err := json.Unmarshal(w.Body.Bytes(), &resp)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), 1, len(resp.Tasks))
@@ -289,7 +291,7 @@ func (suite *IntegrationTestSuite) TestGetTasksWithFiltering() {
 
 	assert.Equal(suite.T(), http.StatusOK, w2.Code)
 
-	var resp2 handlers.TaskListResponse
+	var resp2 dto.TaskListResponse
 	err = json.Unmarshal(w2.Body.Bytes(), &resp2)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), 2, len(resp2.Tasks))
@@ -300,7 +302,7 @@ func stringPtr(s string) *string {
 	return &s
 }
 
-func statusPtr(s models.TaskStatus) *models.TaskStatus {
+func statusPtr(s types.TaskStatus) *types.TaskStatus {
 	return &s
 }
 

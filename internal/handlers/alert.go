@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 
+	"taheri24.ir/graph1/internal/dto"
 	"taheri24.ir/graph1/internal/middleware"
 
 	"github.com/gin-gonic/gin"
@@ -40,26 +41,26 @@ type Alert struct {
 // @Accept json
 // @Produce json
 // @Success 200 {object} PrometheusAlertResponse
-// @Failure 500 {object} ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
 // @Router /api/v1/alerts [get]
 func (h *AlertHandler) GetAlerts(c *gin.Context) {
 	// Query Prometheus API
 	resp, err := http.Get("http://prometheus:9090/api/v1/alerts")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to query Prometheus"))
+		c.JSON(http.StatusInternalServerError, dto.NewErrorResponse("Failed to query Prometheus"))
 		return
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to read Prometheus response"))
+		c.JSON(http.StatusInternalServerError, dto.NewErrorResponse("Failed to read Prometheus response"))
 		return
 	}
 
 	var promResp PrometheusAlertResponse
 	if err := json.Unmarshal(body, &promResp); err != nil {
-		c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to parse Prometheus response"))
+		c.JSON(http.StatusInternalServerError, dto.NewErrorResponse("Failed to parse Prometheus response"))
 		return
 	}
 
@@ -79,13 +80,13 @@ type FireAlertRequest struct {
 // @Produce json
 // @Param alert body FireAlertRequest true "Alert to fire"
 // @Success 200 {object} map[string]string
-// @Failure 400 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
 // @Router /api/v1/alerts/fire [post]
 func (h *AlertHandler) FireAlert(c *gin.Context) {
 	var req FireAlertRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, NewErr(err))
+		c.JSON(http.StatusBadRequest, dto.NewErr(err))
 		return
 	}
 
@@ -106,13 +107,13 @@ func (h *AlertHandler) FireAlert(c *gin.Context) {
 // @Produce json
 // @Param alert body FireAlertRequest true "Alert to reset"
 // @Success 200 {object} map[string]string
-// @Failure 400 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
 // @Router /api/v1/alerts/reset [post]
 func (h *AlertHandler) ResetAlert(c *gin.Context) {
 	var req FireAlertRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, NewErr(err))
+		c.JSON(http.StatusBadRequest, dto.NewErr(err))
 		return
 	}
 

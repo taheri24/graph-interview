@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"taheri24.ir/graph1/internal/models"
+	"taheri24.ir/graph1/internal/types"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/google/uuid"
@@ -49,7 +50,7 @@ func TestRedisCacheImplSetAndGet(t *testing.T) {
 		ID:          taskID,
 		Title:       "Redis Test Task",
 		Description: "Testing Redis cache",
-		Status:      models.StatusPending,
+		Status:      types.StatusPending,
 		Assignee:    "test@example.com",
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -107,7 +108,7 @@ func TestRedisCacheImplInvalidate(t *testing.T) {
 	task := models.Task{
 		ID:        taskID,
 		Title:     "Test Task",
-		Status:    models.StatusPending,
+		Status:    types.StatusPending,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -152,7 +153,7 @@ func TestRedisCacheImplConcurrentAccess(t *testing.T) {
 			task := models.Task{
 				ID:        uuid.New(),
 				Title:     "Concurrent Task " + string(rune(i)),
-				Status:    models.StatusPending,
+				Status:    types.StatusPending,
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			}
@@ -196,7 +197,7 @@ func TestRedisCacheImplErrorHandling(t *testing.T) {
 	defer redisCache.Close()
 
 	cacheMod := NewRedisCacheImpl[models.Task]("tasks", redisCache)
-	task := models.Task{ID: uuid.New(), Title: "Test", Status: models.StatusPending, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	task := models.Task{ID: uuid.New(), Title: "Test", Status: types.StatusPending, CreatedAt: time.Now(), UpdatedAt: time.Now()}
 	err = cacheMod.Set(task.ID.String(), task)
 	assert.Equal(t, err, nil)
 

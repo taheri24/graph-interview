@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"taheri24.ir/graph1/internal/dto"
+
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )
@@ -146,7 +148,7 @@ func TestFireAlert_InvalidJSON(t *testing.T) {
 	// Assert response
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
-	var response ErrorResponse
+	var response dto.ErrorResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, response.Error)
@@ -203,7 +205,7 @@ func TestResetAlert_InvalidJSON(t *testing.T) {
 	// Assert response
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
-	var response ErrorResponse
+	var response dto.ErrorResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, response.Error)

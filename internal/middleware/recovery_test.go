@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"taheri24.ir/graph1/internal/dto"
 )
 
 // Mock FullErrorCapture for testing
@@ -82,7 +83,7 @@ func TestRecovery(t *testing.T) {
 
 func TestErrorResponse(t *testing.T) {
 	// Test ErrorResponse struct
-	errResp := ErrorResponse{
+	errResp := dto.ErrorResponse{
 		Error:   "test error",
 		Message: "test message",
 	}
@@ -91,7 +92,7 @@ func TestErrorResponse(t *testing.T) {
 	assert.Equal(t, "test message", errResp.Message)
 
 	// Test ErrorResponse with only error
-	errRespOnly := ErrorResponse{
+	errRespOnly := dto.ErrorResponse{
 		Error: "test error only",
 	}
 
