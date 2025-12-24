@@ -1,6 +1,7 @@
 package database_test
 
 import (
+	"context"
 	"database/sql/driver"
 	"fmt"
 	"testing"
@@ -46,7 +47,7 @@ func TestCreateTaskIntegration(t *testing.T) {
 		Assignee:    "test@example.com",
 	}
 
-	err = db.Create(task)
+	err = db.Create(context.TODO(), task)
 	assert.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, task.ID)
 
@@ -78,7 +79,7 @@ func TestUpdateTaskIntegration(t *testing.T) {
 		Status:      models.StatusPending,
 		Assignee:    "original@test.com",
 	}
-	err = db.Create(originalTask)
+	err = db.Create(context.TODO(), originalTask)
 	require.NoError(t, err)
 
 	originalUpdatedAt := originalTask.UpdatedAt
@@ -91,7 +92,7 @@ func TestUpdateTaskIntegration(t *testing.T) {
 	originalTask.Status = models.StatusCompleted
 	originalTask.Assignee = "updated@test.com"
 
-	err = db.Update(originalTask)
+	err = db.Update(context.TODO(), originalTask)
 	assert.NoError(t, err)
 
 	// Verify the update
@@ -121,7 +122,7 @@ func TestDeleteTaskIntegration(t *testing.T) {
 		Status:      models.StatusPending,
 		Assignee:    "delete@test.com",
 	}
-	err = db.Create(task)
+	err = db.Create(context.TODO(), task)
 	require.NoError(t, err)
 
 	// Verify it exists
@@ -130,7 +131,7 @@ func TestDeleteTaskIntegration(t *testing.T) {
 	assert.Equal(t, int64(1), count)
 
 	// Delete the task
-	err = db.Delete(task.ID)
+	err = db.Delete(context.TODO(), task.ID)
 	assert.NoError(t, err)
 
 	// Verify it was deleted
@@ -139,7 +140,7 @@ func TestDeleteTaskIntegration(t *testing.T) {
 
 	// Try to delete non-existent task (should not error due to GORM behavior)
 	nonExistentID := uuid.New()
-	err = db.Delete(nonExistentID)
+	err = db.Delete(context.TODO(), nonExistentID)
 	assert.NoError(t, err) // GORM doesn't return error for deleting non-existent records
 }
 
@@ -184,29 +185,29 @@ func TestGetAllTasksIntegration(t *testing.T) {
 	}
 
 	for i := range tasks {
-		err = db.Create(&tasks[i])
+		err = db.Create(context.TODO(), &tasks[i])
 		require.NoError(t, err)
 	}
 
 	// Test GetAll without filters
-	foundTasks, total, err := db.GetAll(1, 10, "", "")
+	foundTasks, total, err := db.GetAll(context.TODO(), 1, 10, "", "")
 	assert.NoError(t, err)
 	assert.Equal(t, int64(4), total)
 	assert.Len(t, foundTasks, 4)
 
 	// Test pagination
-	foundTasks, total, err = db.GetAll(1, 2, "", "")
+	foundTasks, total, err = db.GetAll(context.TODO(), 1, 2, "", "")
 	assert.NoError(t, err)
 	assert.Equal(t, int64(4), total)
 	assert.Len(t, foundTasks, 2)
 
-	foundTasks, total, err = db.GetAll(2, 2, "", "")
+	foundTasks, total, err = db.GetAll(context.TODO(), 2, 2, "", "")
 	assert.NoError(t, err)
 	assert.Equal(t, int64(4), total)
 	assert.Len(t, foundTasks, 2)
 
 	// Test filtering by status
-	foundTasks, total, err = db.GetAll(1, 10, "pending", "")
+	foundTasks, total, err = db.GetAll(context.TODO(), 1, 10, "pending", "")
 	assert.NoError(t, err)
 	assert.Equal(t, int64(2), total)
 	assert.Len(t, foundTasks, 2)
@@ -215,7 +216,7 @@ func TestGetAllTasksIntegration(t *testing.T) {
 	}
 
 	// Test filtering by assignee
-	foundTasks, total, err = db.GetAll(1, 10, "", "user1@test.com")
+	foundTasks, total, err = db.GetAll(context.TODO(), 1, 10, "", "user1@test.com")
 	assert.NoError(t, err)
 	assert.Equal(t, int64(2), total)
 	assert.Len(t, foundTasks, 2)
@@ -224,7 +225,7 @@ func TestGetAllTasksIntegration(t *testing.T) {
 	}
 
 	// Test combined filtering
-	foundTasks, total, err = db.GetAll(1, 10, "completed", "user1@test.com")
+	foundTasks, total, err = db.GetAll(context.TODO(), 1, 10, "completed", "user1@test.com")
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1), total)
 	assert.Len(t, foundTasks, 1)
@@ -302,7 +303,7 @@ func (suite *DatabaseTestSuite) TestCreate() {
 		recover() // Just recover from panic, test passes if we get here
 	}()
 
-	suite.db.Create(task)
+	suite.db.Create(context.TODO(), task)
 	// If we reach here without panic, the test passes
 }
 
@@ -321,7 +322,7 @@ func (suite *DatabaseTestSuite) TestCreateError() {
 		recover() // Just recover from panic, test passes if we get here
 	}()
 
-	suite.db.Create(task)
+	suite.db.Create(context.TODO(), task)
 }
 
 func (suite *DatabaseTestSuite) TestGetByID() {
@@ -331,7 +332,7 @@ func (suite *DatabaseTestSuite) TestGetByID() {
 		recover() // Just recover from panic, test passes if we get here
 	}()
 
-	suite.db.GetByID(taskID)
+	suite.db.GetByID(context.TODO(), taskID)
 }
 
 func (suite *DatabaseTestSuite) TestGetByIDNotFound() {
@@ -341,7 +342,7 @@ func (suite *DatabaseTestSuite) TestGetByIDNotFound() {
 		recover() // Just recover from panic, test passes if we get here
 	}()
 
-	suite.db.GetByID(taskID)
+	suite.db.GetByID(context.TODO(), taskID)
 }
 
 func (suite *DatabaseTestSuite) TestGetAll() {
@@ -354,7 +355,7 @@ func (suite *DatabaseTestSuite) TestGetAll() {
 		recover() // Just recover from panic, test passes if we get here
 	}()
 
-	suite.db.GetAll(page, limit, status, assignee)
+	suite.db.GetAll(context.TODO(), page, limit, status, assignee)
 }
 
 func (suite *DatabaseTestSuite) TestUpdate() {
@@ -372,7 +373,7 @@ func (suite *DatabaseTestSuite) TestUpdate() {
 		recover() // Just recover from panic, test passes if we get here
 	}()
 
-	suite.db.Update(task)
+	suite.db.Update(context.TODO(), task)
 }
 
 func (suite *DatabaseTestSuite) TestDelete() {
@@ -382,7 +383,7 @@ func (suite *DatabaseTestSuite) TestDelete() {
 		recover() // Just recover from panic, test passes if we get here
 	}()
 
-	suite.db.Delete(taskID)
+	suite.db.Delete(context.TODO(), taskID)
 }
 
 func (suite *DatabaseTestSuite) TestHealth() {
@@ -580,7 +581,7 @@ func TestDatabaseGetAllWithNilDB(t *testing.T) {
 		}
 	}()
 
-	tasks, total, err := db.GetAll(1, 10, "pending", "user@example.com")
+	tasks, total, err := db.GetAll(context.TODO(), 1, 10, "pending", "user@example.com")
 	// If we get here without panic, that's also fine
 	if err != nil {
 		assert.Error(t, err)
@@ -615,7 +616,7 @@ func TestDatabaseGetAllSuccess(t *testing.T) {
 	mock.ExpectQuery(`SELECT \* FROM "tasks"`).
 		WillReturnRows(rows)
 
-	tasks, total, err := db.GetAll(1, 10, "pending", "user@example.com")
+	tasks, total, err := db.GetAll(context.TODO(), 1, 10, "pending", "user@example.com")
 	assert.NoError(t, err)
 	assert.Len(t, tasks, 2)
 	assert.Equal(t, int64(2), total)
@@ -640,7 +641,7 @@ func TestDatabaseGetAllCountError(t *testing.T) {
 	mock.ExpectQuery(`SELECT count\(\*\) FROM "tasks"`).
 		WillReturnError(fmt.Errorf("count failed"))
 
-	tasks, total, err := db.GetAll(1, 10, "pending", "user@example.com")
+	tasks, total, err := db.GetAll(context.TODO(), 1, 10, "pending", "user@example.com")
 	assert.Error(t, err)
 	assert.Nil(t, tasks)
 	assert.Equal(t, int64(0), total)
@@ -669,7 +670,7 @@ func TestDatabaseGetAllSelectError(t *testing.T) {
 	mock.ExpectQuery(`SELECT \* FROM "tasks"`).
 		WillReturnError(fmt.Errorf("select failed"))
 
-	tasks, total, err := db.GetAll(1, 10, "pending", "user@example.com")
+	tasks, total, err := db.GetAll(context.TODO(), 1, 10, "pending", "user@example.com")
 	assert.Error(t, err)
 	assert.Nil(t, tasks)
 	assert.Equal(t, int64(2), total) // Count should have succeeded

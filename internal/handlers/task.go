@@ -6,6 +6,7 @@ import (
 
 	"taheri24.ir/graph1/internal/cache"
 	"taheri24.ir/graph1/internal/database"
+	"taheri24.ir/graph1/internal/middleware"
 	"taheri24.ir/graph1/internal/models"
 	"taheri24.ir/graph1/pkg/utils"
 
@@ -73,6 +74,8 @@ type TaskListResponse struct {
 func (h *TaskHandler) CreateTask(c *gin.Context) {
 	var req CreateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		logger := middleware.GetLoggerFromContext(c.Request.Context())
+		logger.Error("Invalid request body for creating task", "error", err)
 		c.JSON(http.StatusBadRequest, NewErr(err))
 		return
 	}
@@ -89,7 +92,9 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		task.Status = models.StatusPending
 	}
 
-	if err := h.repo.Create(&task); err != nil {
+	if err := h.repo.Create(c.Request.Context(), &task); err != nil {
+		logger := middleware.GetLoggerFromContext(c.Request.Context())
+		logger.Error("Failed to create task in repository", "title", req.Title, "error", err)
 		c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to create task"))
 		return
 	}
@@ -103,6 +108,9 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		CreatedAt:   task.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt:   task.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
+
+	logger := middleware.GetLoggerFromContext(c.Request.Context())
+	logger.Info("Task created successfully", "id", task.ID.String(), "title", task.Title, "status", string(task.Status))
 
 	c.JSON(http.StatusCreated, response)
 }
@@ -136,8 +144,10 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 		limit = 10
 	}
 
-	tasks, total, err := h.repo.GetAll(page, limit, status, assignee)
+	tasks, total, err := h.repo.GetAll(c.Request.Context(), page, limit, status, assignee)
 	if err != nil {
+		logger := middleware.GetLoggerFromContext(c.Request.Context())
+		logger.Error("Failed to fetch tasks from repository", "page", page, "limit", limit, "status", status, "assignee", assignee, "error", err)
 		c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to fetch tasks"))
 		return
 	}
@@ -166,6 +176,9 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 		HasPrevious: page > 1,
 	}
 
+	logger := middleware.GetLoggerFromContext(c.Request.Context())
+	logger.Info("Tasks retrieved successfully", "page", page, "limit", limit, "total", total, "status", status, "assignee", assignee)
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -184,6 +197,8 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
+		logger := middleware.GetLoggerFromContext(c.Request.Context())
+		logger.Error("Invalid task ID provided", "idStr", idStr, "error", err)
 		c.JSON(http.StatusBadRequest, NewErrorResponse("Invalid task ID"))
 		return
 	}
@@ -192,6 +207,8 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 	taskPtr, err := h.cache.Get(id.String())
 	if err == nil && taskPtr != nil {
 		// Cache hit
+		logger := middleware.GetLoggerFromContext(c.Request.Context())
+		logger.Info("Task retrieved from cache", "id", id.String())
 		c.Header("X-Cache-Status", "HIT")
 		response := TaskResponse{
 			ID:          taskPtr.ID,
@@ -207,12 +224,15 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 	}
 
 	// Cache miss, get from repository
-	taskPtr, err = h.repo.GetByID(id)
+	taskPtr, err = h.repo.GetByID(c.Request.Context(), id)
 	if err != nil {
+		logger := middleware.GetLoggerFromContext(c.Request.Context())
 		if utils.ErrIsRecordNotFound(err) {
+			logger.Info("Task not found", "id", id.String())
 			c.Header("X-Cache-Status", "MISS")
 			c.JSON(http.StatusNotFound, NewErrorResponse("Task not found"))
 		} else {
+			logger.Error("Failed to get task from repository", "id", id.String(), "error", err)
 			c.Header("X-Cache-Status", "MISS")
 			c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to get task"))
 		}
@@ -222,8 +242,12 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 	// Set in cache
 	if err := h.cache.Set(id.String(), *taskPtr); err != nil {
 		// Log error but don't fail the request
-		// TODO: add proper logging
+		logger := middleware.GetLoggerFromContext(c.Request.Context())
+		logger.Error("Failed to set task in cache", "id", id.String(), "error", err)
 	}
+
+	logger := middleware.GetLoggerFromContext(c.Request.Context())
+	logger.Info("Task retrieved from database", "id", id.String())
 
 	c.Header("X-Cache-Status", "MISS")
 	response := TaskResponse{
@@ -256,15 +280,20 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
+		logger := middleware.GetLoggerFromContext(c.Request.Context())
+		logger.Error("Invalid task ID provided", "idStr", idStr, "error", err)
 		c.JSON(http.StatusBadRequest, NewErrorResponse("Invalid task ID"))
 		return
 	}
 
-	task, err := h.repo.GetByID(id)
+	task, err := h.repo.GetByID(c.Request.Context(), id)
 	if err != nil {
+		logger := middleware.GetLoggerFromContext(c.Request.Context())
 		if utils.ErrIsRecordNotFound(err) {
+			logger.Info("Task not found for update", "id", id.String())
 			c.JSON(http.StatusNotFound, NewErrorResponse("Task not found"))
 		} else {
+			logger.Error("Failed to get task for update", "id", id.String(), "error", err)
 			c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to get task"))
 		}
 		return
@@ -272,6 +301,8 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 
 	var req UpdateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		logger := middleware.GetLoggerFromContext(c.Request.Context())
+		logger.Error("Invalid request body for updating task", "id", id.String(), "error", err)
 		c.JSON(http.StatusBadRequest, NewErr(err))
 		return
 	}
@@ -290,7 +321,9 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		task.Assignee = *req.Assignee
 	}
 
-	if err := h.repo.Update(task); err != nil {
+	if err := h.repo.Update(c.Request.Context(), task); err != nil {
+		logger := middleware.GetLoggerFromContext(c.Request.Context())
+		logger.Error("Failed to update task in repository", "id", id.String(), "error", err)
 		c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to update task"))
 		return
 	}
@@ -298,7 +331,8 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	// Invalidate cache
 	if err := h.cache.Invalidate(id.String()); err != nil {
 		// Log error but don't fail the request
-		// TODO: add proper logging
+		logger := middleware.GetLoggerFromContext(c.Request.Context())
+		logger.Error("Failed to invalidate task cache", "id", id.String(), "error", err)
 	}
 
 	response := TaskResponse{
@@ -310,6 +344,9 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		CreatedAt:   task.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt:   task.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
+
+	logger := middleware.GetLoggerFromContext(c.Request.Context())
+	logger.Info("Task updated successfully", "id", task.ID.String(), "title", task.Title, "status", string(task.Status))
 
 	c.JSON(http.StatusOK, response)
 }
@@ -330,14 +367,18 @@ func (h *TaskHandler) DeleteTask(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
+		logger := middleware.GetLoggerFromContext(c.Request.Context())
+		logger.Error("Invalid task ID provided", "idStr", idStr, "error", err)
 		c.JSON(http.StatusBadRequest, NewErrorResponse("Invalid task ID"))
 		return
 	}
-
-	if err := h.repo.Delete(id); err != nil {
+	if err := h.repo.Delete(c.Request.Context(), id); err != nil {
+		logger := middleware.GetLoggerFromContext(c.Request.Context())
 		if utils.ErrIsRecordNotFound(err) {
+			logger.Info("Task not found for deletion", "id", id.String())
 			c.JSON(http.StatusNotFound, NewErrorResponse("Task not found"))
 		} else {
+			logger.Error("Failed to delete task from repository", "id", id.String(), "error", err)
 			c.JSON(http.StatusInternalServerError, NewErrorResponse("Failed to delete task"))
 		}
 		return
@@ -346,8 +387,12 @@ func (h *TaskHandler) DeleteTask(c *gin.Context) {
 	// Invalidate cache
 	if err := h.cache.Invalidate(id.String()); err != nil {
 		// Log error but don't fail the request
-		// TODO: add proper logging
+		logger := middleware.GetLoggerFromContext(c.Request.Context())
+		logger.Error("Failed to invalidate task cache", "id", id.String(), "error", err)
 	}
+
+	logger := middleware.GetLoggerFromContext(c.Request.Context())
+	logger.Info("Task deleted successfully", "id", id.String())
 
 	c.JSON(http.StatusNoContent, nil)
 }

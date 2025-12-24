@@ -2,6 +2,7 @@ package handlers_test
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -20,11 +21,11 @@ import (
 
 // MockTaskRepository implements TaskRepository for testing
 type MockTaskRepository struct {
-	CreateFunc  func(task *models.Task) error
-	GetByIDFunc func(id uuid.UUID) (*models.Task, error)
-	GetAllFunc  func(page, limit int, status, assignee string) ([]models.Task, int64, error)
-	UpdateFunc  func(task *models.Task) error
-	DeleteFunc  func(id uuid.UUID) error
+	CreateFunc  func(ctx context.Context, task *models.Task) error
+	GetByIDFunc func(ctx context.Context, id uuid.UUID) (*models.Task, error)
+	GetAllFunc  func(ctx context.Context, page, limit int, status, assignee string) ([]models.Task, int64, error)
+	UpdateFunc  func(ctx context.Context, task *models.Task) error
+	DeleteFunc  func(ctx context.Context, id uuid.UUID) error
 }
 
 // MockCache implements CacheInterface for testing
@@ -67,37 +68,37 @@ func (m *MockCache) InvalidateAll() error {
 	return nil
 }
 
-func (m *MockTaskRepository) Create(task *models.Task) error {
+func (m *MockTaskRepository) Create(ctx context.Context, task *models.Task) error {
 	if m.CreateFunc != nil {
-		return m.CreateFunc(task)
+		return m.CreateFunc(ctx, task)
 	}
 	return nil
 }
 
-func (m *MockTaskRepository) GetByID(id uuid.UUID) (*models.Task, error) {
+func (m *MockTaskRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Task, error) {
 	if m.GetByIDFunc != nil {
-		return m.GetByIDFunc(id)
+		return m.GetByIDFunc(ctx, id)
 	}
 	return nil, nil
 }
 
-func (m *MockTaskRepository) GetAll(page, limit int, status, assignee string) ([]models.Task, int64, error) {
+func (m *MockTaskRepository) GetAll(ctx context.Context, page, limit int, status, assignee string) ([]models.Task, int64, error) {
 	if m.GetAllFunc != nil {
-		return m.GetAllFunc(page, limit, status, assignee)
+		return m.GetAllFunc(ctx, page, limit, status, assignee)
 	}
 	return nil, 0, nil
 }
 
-func (m *MockTaskRepository) Update(task *models.Task) error {
+func (m *MockTaskRepository) Update(ctx context.Context, task *models.Task) error {
 	if m.UpdateFunc != nil {
-		return m.UpdateFunc(task)
+		return m.UpdateFunc(ctx, task)
 	}
 	return nil
 }
 
-func (m *MockTaskRepository) Delete(id uuid.UUID) error {
+func (m *MockTaskRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	if m.DeleteFunc != nil {
-		return m.DeleteFunc(id)
+		return m.DeleteFunc(ctx, id)
 	}
 	return nil
 }
@@ -133,7 +134,7 @@ func (suite *TaskHandlerTestSuite) TestCreateTask_Success() {
 	}
 
 	expectedID := uuid.New()
-	suite.mockRepo.CreateFunc = func(task *models.Task) error {
+	suite.mockRepo.CreateFunc = func(ctx context.Context, task *models.Task) error {
 		task.ID = expectedID
 		task.CreatedAt = time.Now()
 		task.UpdatedAt = time.Now()
@@ -195,7 +196,7 @@ func (suite *TaskHandlerTestSuite) TestGetTask_Success() {
 		UpdatedAt:   time.Now(),
 	}
 
-	suite.mockRepo.GetByIDFunc = func(id uuid.UUID) (*models.Task, error) {
+	suite.mockRepo.GetByIDFunc = func(ctx context.Context, id uuid.UUID) (*models.Task, error) {
 		if id == taskID {
 			return expectedTask, nil
 		}
@@ -222,7 +223,7 @@ func (suite *TaskHandlerTestSuite) TestGetTask_Success() {
 func (suite *TaskHandlerTestSuite) TestGetTask_NotFound() {
 	// Setup
 	taskID := uuid.New()
-	suite.mockRepo.GetByIDFunc = func(id uuid.UUID) (*models.Task, error) {
+	suite.mockRepo.GetByIDFunc = func(ctx context.Context, id uuid.UUID) (*models.Task, error) {
 		return nil, sql.ErrNoRows
 	}
 
@@ -260,7 +261,7 @@ func (suite *TaskHandlerTestSuite) TestGetTask_InvalidID() {
 func (suite *TaskHandlerTestSuite) TestGetTask_DatabaseError() {
 	// Setup
 	taskID := uuid.New()
-	suite.mockRepo.GetByIDFunc = func(id uuid.UUID) (*models.Task, error) {
+	suite.mockRepo.GetByIDFunc = func(ctx context.Context, id uuid.UUID) (*models.Task, error) {
 		return nil, assert.AnError
 	}
 
@@ -302,7 +303,7 @@ func (suite *TaskHandlerTestSuite) TestGetTasks_Success() {
 		},
 	}
 
-	suite.mockRepo.GetAllFunc = func(page, limit int, status, assignee string) ([]models.Task, int64, error) {
+	suite.mockRepo.GetAllFunc = func(ctx context.Context, page, limit int, status, assignee string) ([]models.Task, int64, error) {
 		return expectedTasks, 2, nil
 	}
 
@@ -342,14 +343,14 @@ func (suite *TaskHandlerTestSuite) TestUpdateTask_Success() {
 		Status: statusPtr(models.StatusCompleted),
 	}
 
-	suite.mockRepo.GetByIDFunc = func(id uuid.UUID) (*models.Task, error) {
+	suite.mockRepo.GetByIDFunc = func(ctx context.Context, id uuid.UUID) (*models.Task, error) {
 		if id == taskID {
 			return existingTask, nil
 		}
 		return nil, sql.ErrNoRows
 	}
 
-	suite.mockRepo.UpdateFunc = func(task *models.Task) error {
+	suite.mockRepo.UpdateFunc = func(ctx context.Context, task *models.Task) error {
 		// Simulate update
 		return nil
 	}
@@ -375,7 +376,7 @@ func (suite *TaskHandlerTestSuite) TestUpdateTask_Success() {
 func (suite *TaskHandlerTestSuite) TestDeleteTask_Success() {
 	// Setup
 	taskID := uuid.New()
-	suite.mockRepo.DeleteFunc = func(id uuid.UUID) error {
+	suite.mockRepo.DeleteFunc = func(ctx context.Context, id uuid.UUID) error {
 		return nil
 	}
 
@@ -392,7 +393,7 @@ func (suite *TaskHandlerTestSuite) TestDeleteTask_Success() {
 func (suite *TaskHandlerTestSuite) TestDeleteTask_NotFound() {
 	// Setup
 	taskID := uuid.New()
-	suite.mockRepo.DeleteFunc = func(id uuid.UUID) error {
+	suite.mockRepo.DeleteFunc = func(ctx context.Context, id uuid.UUID) error {
 		return sql.ErrNoRows
 	}
 
@@ -430,7 +431,7 @@ func (suite *TaskHandlerTestSuite) TestDeleteTask_InvalidID() {
 func (suite *TaskHandlerTestSuite) TestDeleteTask_DatabaseError() {
 	// Setup
 	taskID := uuid.New()
-	suite.mockRepo.DeleteFunc = func(id uuid.UUID) error {
+	suite.mockRepo.DeleteFunc = func(ctx context.Context, id uuid.UUID) error {
 		return assert.AnError
 	}
 
@@ -456,7 +457,7 @@ func (suite *TaskHandlerTestSuite) TestUpdateTask_NotFound() {
 		Title: stringPtr("Updated Title"),
 	}
 
-	suite.mockRepo.GetByIDFunc = func(id uuid.UUID) (*models.Task, error) {
+	suite.mockRepo.GetByIDFunc = func(ctx context.Context, id uuid.UUID) (*models.Task, error) {
 		return nil, sql.ErrNoRows
 	}
 
@@ -534,14 +535,14 @@ func (suite *TaskHandlerTestSuite) TestUpdateTask_DatabaseError() {
 		Title: stringPtr("Updated Title"),
 	}
 
-	suite.mockRepo.GetByIDFunc = func(id uuid.UUID) (*models.Task, error) {
+	suite.mockRepo.GetByIDFunc = func(ctx context.Context, id uuid.UUID) (*models.Task, error) {
 		if id == taskID {
 			return existingTask, nil
 		}
 		return nil, sql.ErrNoRows
 	}
 
-	suite.mockRepo.UpdateFunc = func(task *models.Task) error {
+	suite.mockRepo.UpdateFunc = func(ctx context.Context, task *models.Task) error {
 		return assert.AnError
 	}
 
@@ -588,7 +589,7 @@ func (suite *TaskHandlerTestSuite) TestCreateTask_DatabaseError() {
 		Assignee:    "test@example.com",
 	}
 
-	suite.mockRepo.CreateFunc = func(task *models.Task) error {
+	suite.mockRepo.CreateFunc = func(ctx context.Context, task *models.Task) error {
 		return assert.AnError
 	}
 
@@ -618,7 +619,7 @@ func (suite *TaskHandlerTestSuite) TestGetTasks_WithFilters() {
 		},
 	}
 
-	suite.mockRepo.GetAllFunc = func(page, limit int, status, assignee string) ([]models.Task, int64, error) {
+	suite.mockRepo.GetAllFunc = func(ctx context.Context, page, limit int, status, assignee string) ([]models.Task, int64, error) {
 		assert.Equal(suite.T(), 1, page)
 		assert.Equal(suite.T(), 5, limit)
 		assert.Equal(suite.T(), "pending", status)
@@ -644,7 +645,7 @@ func (suite *TaskHandlerTestSuite) TestGetTasks_WithFilters() {
 
 func (suite *TaskHandlerTestSuite) TestGetTasks_DatabaseError() {
 	// Setup
-	suite.mockRepo.GetAllFunc = func(page, limit int, status, assignee string) ([]models.Task, int64, error) {
+	suite.mockRepo.GetAllFunc = func(ctx context.Context, page, limit int, status, assignee string) ([]models.Task, int64, error) {
 		return nil, 0, assert.AnError
 	}
 

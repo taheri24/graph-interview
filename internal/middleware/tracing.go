@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -11,6 +12,11 @@ import (
 type RequestIDKey string
 
 const requestIDKey RequestIDKey = "requestID"
+
+// LoggerKey is the context key for logger
+type LoggerKey string
+
+const loggerKey LoggerKey = "logger"
 
 // RequestIDMiddleware adds a unique request ID to each request for tracing
 func RequestIDMiddleware() gin.HandlerFunc {
@@ -25,8 +31,12 @@ func RequestIDMiddleware() gin.HandlerFunc {
 		c.Set(string(requestIDKey), requestID)
 		c.Header("X-Request-ID", requestID)
 
+		// Create a logger with request ID attribute
+		logger := slog.With(slog.String("requestID", requestID))
+
 		// Also add to context for downstream use
 		ctx := context.WithValue(c.Request.Context(), requestIDKey, requestID)
+		ctx = context.WithValue(ctx, loggerKey, logger)
 		c.Request = c.Request.WithContext(ctx)
 
 		c.Next()
@@ -51,4 +61,14 @@ func GetRequestIDFromContext(ctx context.Context) string {
 		}
 	}
 	return ""
+}
+
+// GetLoggerFromContext retrieves the logger from the context
+func GetLoggerFromContext(ctx context.Context) *slog.Logger {
+	if logger := ctx.Value(loggerKey); logger != nil {
+		if l, ok := logger.(*slog.Logger); ok {
+			return l
+		}
+	}
+	return slog.Default()
 }

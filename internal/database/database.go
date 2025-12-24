@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 
@@ -16,11 +17,11 @@ import (
 
 // TaskRepository defines the interface for task database operations
 type TaskRepository interface {
-	Create(task *models.Task) error
-	GetByID(id uuid.UUID) (*models.Task, error)
-	GetAll(page, limit int, status, assignee string) ([]models.Task, int64, error)
-	Update(task *models.Task) error
-	Delete(id uuid.UUID) error
+	Create(ctx context.Context, task *models.Task) error
+	GetByID(ctx context.Context, id uuid.UUID) (*models.Task, error)
+	GetAll(ctx context.Context, page, limit int, status, assignee string) ([]models.Task, int64, error)
+	Update(ctx context.Context, task *models.Task) error
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 type Database struct {
@@ -31,23 +32,23 @@ type Database struct {
 var _ TaskRepository = (*Database)(nil)
 
 // Create creates a new task
-func (d *Database) Create(task *models.Task) error {
-	return d.DB.Create(task).Error
+func (d *Database) Create(ctx context.Context, task *models.Task) error {
+	return d.DB.WithContext(ctx).Create(task).Error
 }
 
 // GetByID retrieves a task by ID
-func (d *Database) GetByID(id uuid.UUID) (task *models.Task, err error) {
-	err = d.DB.First(&task, "id = ?", id).Error
+func (d *Database) GetByID(ctx context.Context, id uuid.UUID) (task *models.Task, err error) {
+	err = d.DB.WithContext(ctx).First(&task, "id = ?", id).Error
 	return task, err
 }
 
 // GetAll retrieves tasks with pagination and filtering
-func (d *Database) GetAll(page, limit int, status, assignee string) ([]models.Task, int64, error) {
+func (d *Database) GetAll(ctx context.Context, page, limit int, status, assignee string) ([]models.Task, int64, error) {
 	var tasks []models.Task
 	var total int64
 
 	offset := (page - 1) * limit
-	query := d.DB.Model(&models.Task{})
+	query := d.DB.WithContext(ctx).Model(&models.Task{})
 
 	if status != "" {
 		query = query.Where("status = ?", status)
@@ -66,13 +67,13 @@ func (d *Database) GetAll(page, limit int, status, assignee string) ([]models.Ta
 }
 
 // Update updates an existing task
-func (d *Database) Update(task *models.Task) error {
-	return d.DB.Save(task).Error
+func (d *Database) Update(ctx context.Context, task *models.Task) error {
+	return d.DB.WithContext(ctx).Save(task).Error
 }
 
 // Delete deletes a task by ID
-func (d *Database) Delete(id uuid.UUID) error {
-	return d.DB.Delete(&models.Task{}, "id = ?", id).Error
+func (d *Database) Delete(ctx context.Context, id uuid.UUID) error {
+	return d.DB.WithContext(ctx).Delete(&models.Task{}, "id = ?", id).Error
 }
 
 func NewDatabase(cfg *config.Config) (*Database, error) {

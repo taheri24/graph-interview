@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"log/slog"
 	"net/http/httptest"
 	"testing"
 
@@ -35,6 +36,11 @@ func TestRequestIDMiddleware(t *testing.T) {
 			router.Use(RequestIDMiddleware())
 
 			router.GET("/test", func(c *gin.Context) {
+				// Check that logger is set
+				logger := GetLoggerFromContext(c.Request.Context())
+				if logger == nil {
+					t.Error("Expected logger to be set in context")
+				}
 				c.JSON(200, gin.H{"message": "test"})
 			})
 
@@ -145,6 +151,52 @@ func TestGetRequestIDFromContext(t *testing.T) {
 			}
 			if !tt.expectError && retrievedID != tt.requestID {
 				t.Errorf("Expected request ID to be %s, got %s", tt.requestID, retrievedID)
+			}
+		})
+	}
+}
+
+func TestGetLoggerFromContext(t *testing.T) {
+	tests := []struct {
+		name      string
+		requestID string
+		hasLogger bool
+	}{
+		{
+			name:      "retrieves logger with request ID from context",
+			requestID: uuid.New().String(),
+			hasLogger: true,
+		},
+		{
+			name:      "returns default logger when no logger in context",
+			requestID: "",
+			hasLogger: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var ctx context.Context
+
+			if tt.hasLogger {
+				logger := slog.With(slog.String("requestID", tt.requestID))
+				ctx = context.WithValue(context.Background(), loggerKey, logger)
+			} else {
+				ctx = context.Background()
+			}
+
+			retrievedLogger := GetLoggerFromContext(ctx)
+
+			if tt.hasLogger {
+				if retrievedLogger == nil {
+					t.Error("Expected logger, got nil")
+				}
+				// Note: Testing the exact attributes might require a custom handler or buffer
+				// For now, just check that we get a logger
+			} else {
+				if retrievedLogger != slog.Default() {
+					t.Error("Expected default logger when no logger in context")
+				}
 			}
 		})
 	}

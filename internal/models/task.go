@@ -3,6 +3,8 @@ package models
 import (
 	"time"
 
+	"taheri24.ir/graph1/internal/middleware"
+
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -31,6 +33,26 @@ func (t *Task) BeforeCreate(tx *gorm.DB) error {
 	if t.ID == uuid.Nil {
 		t.ID = uuid.New()
 	}
+
+	logger := middleware.GetLoggerFromContext(tx.Statement.Context)
+	logger.Info("Creating task", "id", t.ID.String(), "title", t.Title)
+
+	return nil
+}
+
+// BeforeUpdate hook to log task updates
+func (t *Task) BeforeUpdate(tx *gorm.DB) error {
+	logger := middleware.GetLoggerFromContext(tx.Statement.Context)
+	logger.Info("Updating task", "id", t.ID.String(), "status", string(t.Status), "assignee", t.Assignee)
+
+	return nil
+}
+
+// BeforeDelete hook to log task deletions
+func (t *Task) BeforeDelete(tx *gorm.DB) error {
+	logger := middleware.GetLoggerFromContext(tx.Statement.Context)
+	logger.Info("Deleting task", "id", t.ID.String(), "title", t.Title)
+
 	return nil
 }
 
