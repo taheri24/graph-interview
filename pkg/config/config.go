@@ -62,35 +62,31 @@ func (d *DatabaseConfig) String() string {
 	if d.DSN != "" {
 		return d.DSN
 	}
-
-	switch d.Type {
-	case "postgres":
-		if d.Password == "" {
-			return fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s",
-				d.Host,
-				d.Port,
-				d.User,
-				d.DBName,
-				d.SSLMode,
-			)
-		}
-		return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-			d.Host,
-			d.Port,
-			d.User,
-			d.Password,
-			d.DBName,
-			d.SSLMode,
-		)
-	case "sqlite":
-		if d.DBName == ":memory" {
+	if d.Type == "sqlite" {
+		if d.DBName == ":memory:" {
 			return d.DBName
 		}
 		// Default to SQLite
 		return fmt.Sprintf("%s.db", d.DBName)
-	default:
-		panic(fmt.Sprintf("invalid database type: %s", d.Type))
+
 	}
+	if d.Password == "" {
+		return fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s",
+			d.Host,
+			d.Port,
+			d.User,
+			d.DBName,
+			d.SSLMode,
+		)
+	}
+	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		d.Host,
+		d.Port,
+		d.User,
+		d.Password,
+		d.DBName,
+		d.SSLMode,
+	)
 }
 
 func getEnv(key, defaultValue string) string {

@@ -91,10 +91,12 @@ func NewDatabase(cfg *config.Config) (*Database, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
+	result := &Database{DB: db}
+	if cfg.Database.Type == "sqlite" {
+		Migrate(db)
+	}
 
-	// Auto-migrate the schema
-
-	return &Database{DB: db}, nil
+	return result, nil
 }
 
 // Migrate handles auto-migration of database schema
