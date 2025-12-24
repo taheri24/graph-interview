@@ -19,7 +19,7 @@
                         <p class="text-slate-600 text-sm mt-1">Real-time task tracking and management</p>
                     </div>
                     <div class="text-right">
-                        <p class="text-sm text-slate-600">Metrics: <span x-text="taskCount" class="font-semibold text-blue-600">0</span> tasks</p>
+                         <p class="text-sm text-slate-600">Metrics: <span x-text="totalTasks" class="font-semibold text-blue-600">0</span> tasks</p>
                         <p class="text-xs text-slate-500 mt-1">Status: <span x-text="apiStatus" class="font-semibold" :class="apiStatus === 'Online' ? 'text-green-600' : 'text-red-600'">Checking...</span></p>
                     </div>
                 </div>
@@ -40,34 +40,34 @@
                             + New Task
                         </button>
                         <div class="space-y-2">
-                            <button
-                                @click="activeFilter = 'all'; loadTasks()"
-                                :class="activeFilter === 'all' ? 'bg-blue-100 text-blue-700' : 'text-slate-700 hover:bg-slate-100'"
-                                class="w-full px-4 py-2 rounded text-left transition"
-                            >
-                                All Tasks
-                            </button>
-                            <button
-                                @click="activeFilter = 'pending'; loadTasks()"
-                                :class="activeFilter === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'text-slate-700 hover:bg-slate-100'"
-                                class="w-full px-4 py-2 rounded text-left transition"
-                            >
-                                Pending
-                            </button>
-                            <button
-                                @click="activeFilter = 'in_progress'; loadTasks()"
-                                :class="activeFilter === 'in_progress' ? 'bg-purple-100 text-purple-700' : 'text-slate-700 hover:bg-slate-100'"
-                                class="w-full px-4 py-2 rounded text-left transition"
-                            >
-                                In Progress
-                            </button>
-                            <button
-                                @click="activeFilter = 'completed'; loadTasks()"
-                                :class="activeFilter === 'completed' ? 'bg-green-100 text-green-700' : 'text-slate-700 hover:bg-slate-100'"
-                                class="w-full px-4 py-2 rounded text-left transition"
-                            >
-                                Completed
-                            </button>
+                             <button
+                                 @click="activeFilter = 'all'; currentPage = 1; loadTasks()"
+                                 :class="activeFilter === 'all' ? 'bg-blue-100 text-blue-700' : 'text-slate-700 hover:bg-slate-100'"
+                                 class="w-full px-4 py-2 rounded text-left transition"
+                             >
+                                 All Tasks
+                             </button>
+                             <button
+                                 @click="activeFilter = 'pending'; currentPage = 1; loadTasks()"
+                                 :class="activeFilter === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'text-slate-700 hover:bg-slate-100'"
+                                 class="w-full px-4 py-2 rounded text-left transition"
+                             >
+                                 Pending
+                             </button>
+                             <button
+                                 @click="activeFilter = 'in_progress'; currentPage = 1; loadTasks()"
+                                 :class="activeFilter === 'in_progress' ? 'bg-purple-100 text-purple-700' : 'text-slate-700 hover:bg-slate-100'"
+                                 class="w-full px-4 py-2 rounded text-left transition"
+                             >
+                                 In Progress
+                             </button>
+                             <button
+                                 @click="activeFilter = 'completed'; currentPage = 1; loadTasks()"
+                                 :class="activeFilter === 'completed' ? 'bg-green-100 text-green-700' : 'text-slate-700 hover:bg-slate-100'"
+                                 class="w-full px-4 py-2 rounded text-left transition"
+                             >
+                                 Completed
+                             </button>
                         </div>
                     </div>
                 </aside>
@@ -216,9 +216,42 @@
                                     </div>
                                 </div>
                             </template>
-                        </div>
-                     </div>
-                 </section>
+                         </div>
+
+                         <!-- Pagination Controls -->
+                         <div x-show="totalPages > 1" class="px-6 py-6 border-t border-slate-200 flex items-center justify-between bg-slate-50/50">
+                             <div class="text-sm text-slate-600 font-medium">
+                                 Showing <span x-text="((currentPage - 1) * pageSize) + 1" class="font-semibold text-slate-900"></span> to
+                                 <span x-text="Math.min(currentPage * pageSize, totalTasks)" class="font-semibold text-slate-900"></span> of
+                                 <span x-text="totalTasks" class="font-semibold text-slate-900"></span> tasks
+                                 <span class="text-xs text-slate-500 ml-1">(Page <span x-text="currentPage"></span> of <span x-text="totalPages"></span>)</span>
+                             </div>
+                             <div class="flex items-center space-x-4">
+                                 <button
+                                     @click="goToPage(currentPage - 1)"
+                                     :disabled="!hasPrevPage"
+                                     :class="!hasPrevPage ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50 hover:border-slate-400 hover:shadow-sm active:bg-slate-100'"
+                                     class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-60"
+                                 >
+                                     ← Previous
+                                 </button>
+                                 <div class="flex items-center space-x-1">
+                                     <div class="w-2 h-2 bg-slate-300 rounded-full"></div>
+                                     <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                     <div class="w-2 h-2 bg-slate-300 rounded-full"></div>
+                                 </div>
+                                 <button
+                                     @click="goToPage(currentPage + 1)"
+                                     :disabled="!hasNextPage"
+                                     :class="!hasNextPage ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50 hover:border-slate-400 hover:shadow-sm active:bg-slate-100'"
+                                     class="px-4 py-2 text-sm font-medium border rounded-lg transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-60"
+                                 >
+                                     Next →
+                                 </button>
+                             </div>
+                         </div>
+                      </div>
+                  </section>
 
                  <!-- Alerts Panel -->
                  <aside class="lg:col-span-1">
@@ -304,6 +337,13 @@
                 errors: {
                     title: ''
                 },
+                // Pagination state
+                currentPage: 1,
+                pageSize: 10,
+                totalTasks: 0,
+                totalPages: 0,
+                hasNextPage: false,
+                hasPrevPage: false,
 
                 validateTitle() {
                     const title = this.newTask.title.trim();
@@ -336,17 +376,29 @@
                     setInterval(() => this.loadAlerts(), 10000);
                 },
 
-                async loadTasks() {
+                async loadTasks(page = this.currentPage) {
                     try {
-                        const url = this.activeFilter === 'all'
-                            ? '/api/v1/tasks'
-                            : `/api/v1/tasks?status=${this.activeFilter}`;
+                        const params = new URLSearchParams({
+                            page: page.toString(),
+                            limit: this.pageSize.toString()
+                        });
+
+                        if (this.activeFilter !== 'all') {
+                            params.append('status', this.activeFilter);
+                        }
+
+                        const url = `/api/v1/tasks?${params.toString()}`;
 
                         const response = await fetch(url);
                         if (!response.ok) throw new Error('Failed to load tasks');
 
                         const data = await response.json();
                         this.tasks = data.tasks || [];
+                        this.totalTasks = data.total || 0;
+                        this.totalPages = Math.ceil(this.totalTasks / this.pageSize);
+                        this.hasNextPage = data.has_next || false;
+                        this.hasPrevPage = data.has_previous || false;
+                        this.currentPage = data.page || 1;
                         this.taskCount = this.tasks.length;
                     } catch (error) {
                         this.showToast('Failed to load tasks', 'error');
@@ -570,6 +622,13 @@
                     if (!dateString) return 'N/A';
                     const date = new Date(dateString);
                     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                },
+
+                goToPage(page) {
+                    if (page >= 1 && page <= this.totalPages) {
+                        this.currentPage = page;
+                        this.loadTasks(page);
+                    }
                 },
 
                 onRequestComplete() {
