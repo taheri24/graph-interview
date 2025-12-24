@@ -28,7 +28,7 @@
 
         <!-- Main Content -->
         <main class="max-w-7xl mx-auto px-4 py-8">
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
                 <!-- Actions Sidebar -->
                 <aside class="lg:col-span-1">
                     <div class="bg-white rounded-lg shadow p-6 sticky top-8">
@@ -72,26 +72,26 @@
                     </div>
                 </aside>
 
-                <!-- System Info Panel -->
-                <aside class="lg:col-span-1">
-                    <div class="bg-white rounded-lg shadow p-6 sticky top-8">
-                        <h3 class="text-lg font-semibold text-slate-900 mb-4">System Info</h3>
-                        <div class="space-y-3 text-sm">
-                            <div class="flex justify-between items-center">
-                                <span class="text-slate-600">API:</span>
-                                <span class="text-slate-900 font-medium">http://api:8080</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-slate-600">Metrics:</span>
-                                <a href="http://localhost:9090/" target="_blank" class="text-blue-600 hover:underline">Prometheus</a>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-slate-600">Docs:</span>
-                                <a href="/swagger/index.html" target="_blank" class="text-blue-600 hover:underline">Swagger</a>
-                            </div>
-                        </div>
-                    </div>
-                </aside>
+                 <!-- System Info Panel -->
+                 <aside class="lg:col-span-1">
+                     <div class="bg-white rounded-lg shadow p-6 sticky top-8">
+                         <h3 class="text-lg font-semibold text-slate-900 mb-4">System Info</h3>
+                         <div class="space-y-3 text-sm">
+                             <div class="flex justify-between items-center">
+                                 <span class="text-slate-600">API:</span>
+                                 <span class="text-slate-900 font-medium">http://api:8080</span>
+                             </div>
+                             <div class="flex justify-between items-center">
+                                 <span class="text-slate-600">Metrics:</span>
+                                 <a href="http://localhost:9090/" target="_blank" class="text-blue-600 hover:underline">Prometheus</a>
+                             </div>
+                             <div class="flex justify-between items-center">
+                                 <span class="text-slate-600">Docs:</span>
+                                 <a href="http://localhost:8080/swagger/index.html" target="_blank" class="text-blue-600 hover:underline">Swagger</a>
+                             </div>
+                         </div>
+                     </div>
+                 </aside>
 
                 <!-- Main Content Area -->
                 <section class="lg:col-span-2">
@@ -216,9 +216,53 @@
                                 </div>
                             </template>
                         </div>
-                    </div>
-                </section>
-            </div>
+                     </div>
+                 </section>
+
+                 <!-- Alerts Panel -->
+                 <aside class="lg:col-span-1">
+                     <div class="bg-white rounded-lg shadow p-6 sticky top-8">
+                         <h3 class="text-lg font-semibold text-slate-900 mb-4">Alerts</h3>
+                         <div class="space-y-3">
+                             <div class="flex gap-2">
+                                 <input
+                                     x-model="newAlertName"
+                                     type="text"
+                                     placeholder="Alert name"
+                                     class="flex-1 px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                 >
+                                 <button
+                                     @click="fireAlert()" style="min-width: 100px;"
+                                     class="  py-1 w-100 bg-red-600 text-white   rounded hover:bg-red-700 transition"
+                                     title="Fire Alert"
+                                 >
+                                     🔥 Fire Alert
+                                 </button>
+                             </div>
+                             <button
+                                 @click="resetAlert()"
+                                 class="w-full px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition"
+                                 title="Reset Alert"
+                             >
+                                 Reset Alert
+                             </button>
+                             <div class="border-t border-slate-200 pt-3">
+                                 <h4 class="text-sm font-medium text-slate-700 mb-2">Active Alerts</h4>
+                                 <div x-show="alerts.length === 0" class="text-xs text-slate-500">No active alerts</div>
+                                 <div x-show="alerts.length > 0" class="space-y-2 max-h-40 overflow-y-auto">
+                                     <template x-for="alert in alerts" :key="alert.labels.alertname">
+                                         <div class="bg-red-50 border border-red-200 rounded p-2">
+                                             <div class="text-xs font-medium text-red-800" x-text="alert.labels.alertname"></div>
+                                             <div class="text-xs text-red-600" x-text="alert.annotations.summary"></div>
+                                             <div class="text-xs text-red-500" x-text="alert.state + ' since ' + formatDate(alert.activeAt)"></div>
+                                         </div>
+                                     </template>
+                                 </div>
+                             </div>
+                         </div>
+                     </div>
+                 </aside>
+             </div>
         </main>
 
         <!-- Toast Notifications -->
@@ -254,12 +298,16 @@
                 isLoading: false,
                 toasts: [],
                 toastId: 0,
+                alerts: [],
+                newAlertName: '',
 
                 init() {
                     this.loadTasks();
                     this.checkHealth();
+                    this.loadAlerts();
                     setInterval(() => this.loadTasks(), 5000);
                     setInterval(() => this.checkHealth(), 10000);
+                    setInterval(() => this.loadAlerts(), 10000);
                 },
 
                 async loadTasks() {
@@ -277,6 +325,66 @@
                         this.taskCount = this.tasks.length;
                     } catch (error) {
                         this.showToast('Failed to load tasks', 'error');
+                        console.error(error);
+                    }
+                },
+
+                async loadAlerts() {
+                    try {
+                        const response = await fetch('/api/alerts');
+                        if (!response.ok) throw new Error('Failed to load alerts');
+
+                        const data = await response.json();
+                        this.alerts = data.data.alerts || [];
+                    } catch (error) {
+                        console.error('Error loading alerts:', error);
+                    }
+                },
+
+                async fireAlert() {
+                    if (!this.newAlertName.trim()) {
+                        this.showToast('Alert name is required', 'error');
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch('/api/alerts/fire', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ alert_name: this.newAlertName })
+                        });
+
+                        if (!response.ok) throw new Error('Failed to fire alert');
+
+                        this.showToast('Alert fired successfully', 'success');
+                        this.newAlertName = '';
+                        await this.loadAlerts();
+                    } catch (error) {
+                        this.showToast('Error firing alert', 'error');
+                        console.error(error);
+                    }
+                },
+
+                async resetAlert() {
+                    if (!this.newAlertName.trim()) {
+                        this.showToast('Alert name is required', 'error');
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch('/api/alerts/reset', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ alert_name: this.newAlertName })
+                        });
+
+                        if (!response.ok) throw new Error('Failed to reset alert');
+
+                        this.showToast('Alert reset successfully', 'success');
+                        this.newAlertName = '';
+                        await this.loadAlerts();
+                    } catch (error) {
+                        this.showToast('Error resetting alert', 'error');
                         console.error(error);
                     }
                 },
